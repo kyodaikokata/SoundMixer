@@ -1,0 +1,115 @@
+using System;
+using System.Collections.Generic;
+using Dalamud.Configuration;
+using DotNet.Globbing;
+using SoundMixer.Localization;
+
+namespace SoundMixer;
+
+[Serializable]
+public class Configuration : IPluginConfiguration
+{
+    public int Version { get; set; } = 4;
+
+    public bool Enabled { get; set; } = true;
+    public bool ExpertMode { get; set; } = false;
+    public bool EnableMonitoring { get; set; } = true;
+    public const int MonitoringHistorySize = 100;
+    public const int MonitoringDisplayCount = 20;
+    public bool ShowRecentSounds { get; set; } = true;
+    public bool HideMatchedMonitoringLogs { get; set; } = false;
+    public string MonitoringHideKeywords { get; set; } = "";
+    public LanguageMode UiLanguage { get; set; } = LanguageMode.System;
+
+    public float? MainWindowX { get; set; }
+    public float? MainWindowY { get; set; }
+    public float? MainWindowWidth { get; set; }
+    public float? MainWindowHeight { get; set; }
+
+    public List<SoundPreset> Presets { get; set; } = new();
+    public string? ActivePresetId { get; set; }
+
+    public List<SoundGroup> Groups { get; set; } = new();
+    public Dictionary<string, string> SoundToGroup { get; set; } = new();
+    public Dictionary<string, float> IndividualVolumes { get; set; } = new();
+    public Dictionary<string, string> PathAliases { get; set; } = new();
+
+    [NonSerialized]
+    private Dictionary<string, Glob>? _cachedGlobs;
+
+    public void Save()
+    {
+        PresetManager.SyncActivePreset(this);
+        Services.PluginInterface.SavePluginConfig(this);
+    }
+
+    public const float NormalMaxVolume = 2.0f;
+
+    /// <summary>实测引擎听感上限约 300%–350%，取 350% 作为应用钳制值。</summary>
+    public const float EngineAudibleCap = 3.5f;
+
+    public const float ExpertMaxVolume = EngineAudibleCap;
+
+    public float GetMaxVolume() => ExpertMode ? ExpertMaxVolume : NormalMaxVolume;
+
+    public static float ClampToUiRange(float volume, float maxVolume) => Math.Clamp(volume, 0f, maxVolume);
+
+    public static float ClampToEngineCap(float volume) => Math.Clamp(volume, 0f, EngineAudibleCap);
+
+    internal Dictionary<string, Glob> GetCachedGlobs()
+    {
+        if (_cachedGlobs == null)
+        {
+            _cachedGlobs = new Dictionary<string, Glob>();
+            foreach (var group in Groups)
+            {
+                foreach (var pattern in group.PathPatterns)
+                {
+                    if (!_cachedGlobs.ContainsKey(pattern))
+                    {
+                        _cachedGlobs[pattern] = Glob.Parse(pattern);
+                    }
+                }
+            }
+        }
+        return _cachedGlobs;
+    }
+
+    public void InvalidateGlobCache()
+    {
+        _cachedGlobs = null;
+    }
+}
+
+[Serializable]
+public class SoundGroup
+{
+    public string Id { get; set; } = Guid.NewGuid().ToString();
+    public string Name { get; set; } = "New Group";
+    public string? ParentId { get; set; }
+    public float GroupVolume { get; set; } = 1.0f;
+    public bool ApplyToChildren { get; set; } = true;
+    public List<string> SoundPaths { get; set; } = new();
+    public List<string> PathPatterns { get; set; } = new();
+    public string Icon { get; set; } = "";
+    public bool IsBuiltIn { get; set; } = false;
+    public bool IsExpanded { get; set; } = true;
+
+    /// <summary>ARGB label color for root groups. 0 = default theme text color.</summary>
+    public uint LabelColorArgb { get; set; }
+
+    /// <summary>Hide sounds matching this group (and sub-groups) from the live monitor log.</summary>
+    public bool HideFromMonitorLog { get; set; }
+}
+
+public class SoundInfo
+{
+    public string Path { get; set; } = "";
+    public int Index { get; set; }
+    public string Category { get; set; } = "未分类";
+    public float Volume { get; set; } = 1.0f;
+    public int PlayCount { get; set; }
+    public DateTime LastPlayed { get; set; }
+
+    public string FullPath => $"{Path}/{Index}";
+}

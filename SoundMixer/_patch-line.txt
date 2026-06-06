@@ -1,0 +1,1 @@
+        <Exec Command=powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -Path '$(_ZipStaging)*' -DestinationPath '$(_ZipPath)' -Force&quot; />

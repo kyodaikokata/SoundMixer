@@ -1,0 +1,511 @@
+{
+  "$type": "SoundMixer.Configuration, SoundMixer",
+  "Version": 4,
+  "Enabled": true,
+  "ExpertMode": false,
+  "EnableMonitoring": true,
+  "ShowRecentSounds": true,
+  "HideMatchedMonitoringLogs": false,
+  "MonitoringHideKeywords": "",
+  "UiLanguage": 1,
+  "Presets": [
+    {
+      "$type": "SoundMixer.SoundPreset, SoundMixer",
+      "Id": "2fecadaf-c027-4586-9385-2ed1d307855a",
+      "Name": "默认",
+      "Groups": [
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "a8a8dba3-a7ed-4d79-b85a-e3f600e23b59",
+          "Name": "UI音效",
+          "ParentId": null,
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/ui/**",
+            "**/system/se_ui**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": true,
+          "IsExpanded": true,
+          "LabelColorArgb": 2533359615,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "bf7664ec-4c60-42cc-aa46-68ab9545125c",
+          "Name": "背景音乐",
+          "ParentId": null,
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/music/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": true,
+          "IsExpanded": true,
+          "LabelColorArgb": 4293171455,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "Name": "战斗",
+          "ParentId": null,
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 4286288127,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+          "Name": "环境",
+          "ParentId": null,
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 4290903947,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "6ffc8ac7-3a7b-4344-9060-e448b88a6410",
+          "Name": "Unknown",
+          "ParentId": null,
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/unknown/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 4286545791,
+          "HideFromMonitorLog": true
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "ab397304-0ef4-46fe-baf2-d2b177a9685c",
+          "Name": "战斗音效",
+          "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/vfx/se_vfx_common**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": true,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "c725104f-2983-48bf-b3aa-4be5d9b9204c",
+          "Name": "战技音效",
+          "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/vfx/weponskill/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": true,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "c0de5559-f489-4d9b-883d-86c191d3a0dc",
+          "Name": "魔法音效",
+          "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/vfx/magic/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "e42763ee-8428-421c-a0dc-b98d477c55f3",
+          "Name": "Buff音效",
+          "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/vfx/etc/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "6f4a819b-1d96-490a-8294-7b807a9c8254",
+          "Name": "武器音效",
+          "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/battle/wep/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "87190d35-83f1-4056-94fd-0c9a36992105",
+          "Name": "战斗语音",
+          "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/voice/vo_battle_**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "4c18d51b-9bac-4e2a-ab77-57e3cfe9073c",
+          "Name": "环境音效",
+          "ParentId": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/bgcommon/sound/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": true,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "0ddb4933-b143-41d4-917f-d2d782f93309",
+          "Name": "脚步声",
+          "ParentId": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+          "GroupVolume": 1.0,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/foot/foot/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        },
+        {
+          "$type": "SoundMixer.SoundGroup, SoundMixer",
+          "Id": "bac1cbb7-3d99-4122-a1a1-85a4f03d9f7a",
+          "Name": "衣服摩擦",
+          "ParentId": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+          "GroupVolume": 0.5,
+          "ApplyToChildren": true,
+          "SoundPaths": [],
+          "PathPatterns": [
+            "**/foot/dev/**"
+          ],
+          "Icon": "",
+          "IsBuiltIn": false,
+          "IsExpanded": true,
+          "LabelColorArgb": 0,
+          "HideFromMonitorLog": false
+        }
+      ],
+      "SoundToGroup": {
+        "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.String, System.Private.CoreLib]], System.Private.CoreLib"
+      },
+      "IndividualVolumes": {
+        "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.Single, System.Private.CoreLib]], System.Private.CoreLib"
+      },
+      "PathAliases": {
+        "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.String, System.Private.CoreLib]], System.Private.CoreLib"
+      }
+    }
+  ],
+  "ActivePresetId": "2fecadaf-c027-4586-9385-2ed1d307855a",
+  "Groups": [
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "a8a8dba3-a7ed-4d79-b85a-e3f600e23b59",
+      "Name": "UI音效",
+      "ParentId": null,
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/ui/**",
+        "**/system/se_ui**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": true,
+      "IsExpanded": true,
+      "LabelColorArgb": 2533359615,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "bf7664ec-4c60-42cc-aa46-68ab9545125c",
+      "Name": "背景音乐",
+      "ParentId": null,
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/music/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": true,
+      "IsExpanded": true,
+      "LabelColorArgb": 4293171455,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "Name": "战斗",
+      "ParentId": null,
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 4286288127,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+      "Name": "环境",
+      "ParentId": null,
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 4290903947,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "6ffc8ac7-3a7b-4344-9060-e448b88a6410",
+      "Name": "Unknown",
+      "ParentId": null,
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/unknown/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 4286545791,
+      "HideFromMonitorLog": true
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "ab397304-0ef4-46fe-baf2-d2b177a9685c",
+      "Name": "战斗音效",
+      "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/vfx/se_vfx_common**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": true,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "c725104f-2983-48bf-b3aa-4be5d9b9204c",
+      "Name": "战技音效",
+      "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/vfx/weponskill/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": true,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "c0de5559-f489-4d9b-883d-86c191d3a0dc",
+      "Name": "魔法音效",
+      "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/vfx/magic/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "e42763ee-8428-421c-a0dc-b98d477c55f3",
+      "Name": "Buff音效",
+      "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/vfx/etc/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "6f4a819b-1d96-490a-8294-7b807a9c8254",
+      "Name": "武器音效",
+      "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/battle/wep/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "87190d35-83f1-4056-94fd-0c9a36992105",
+      "Name": "战斗语音",
+      "ParentId": "f3707363-c966-4a3d-b90d-d941a73bcba0",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/voice/vo_battle_**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "4c18d51b-9bac-4e2a-ab77-57e3cfe9073c",
+      "Name": "环境音效",
+      "ParentId": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/bgcommon/sound/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": true,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "0ddb4933-b143-41d4-917f-d2d782f93309",
+      "Name": "脚步声",
+      "ParentId": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+      "GroupVolume": 1.0,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/foot/foot/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    },
+    {
+      "$type": "SoundMixer.SoundGroup, SoundMixer",
+      "Id": "bac1cbb7-3d99-4122-a1a1-85a4f03d9f7a",
+      "Name": "衣服摩擦",
+      "ParentId": "a3675df1-7787-4415-a1a6-7829785a7d6e",
+      "GroupVolume": 0.5,
+      "ApplyToChildren": true,
+      "SoundPaths": [],
+      "PathPatterns": [
+        "**/foot/dev/**"
+      ],
+      "Icon": "",
+      "IsBuiltIn": false,
+      "IsExpanded": true,
+      "LabelColorArgb": 0,
+      "HideFromMonitorLog": false
+    }
+  ],
+  "SoundToGroup": {
+    "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.String, System.Private.CoreLib]], System.Private.CoreLib"
+  },
+  "IndividualVolumes": {
+    "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.Single, System.Private.CoreLib]], System.Private.CoreLib"
+  },
+  "PathAliases": {
+    "$type": "System.Collections.Generic.Dictionary`2[[System.String, System.Private.CoreLib],[System.String, System.Private.CoreLib]], System.Private.CoreLib"
+  }
+}

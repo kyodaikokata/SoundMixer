@@ -1,0 +1,54 @@
+## Source-only Git repo (github.com/kyodaikokata/SoundMixer).
+## Build scripts, sync tools, icons, zips, and user manifests live elsewhere:
+##   - WorkInProgress/SoundMixer  → scripts/, dist/, pluginmaster drafts, images/
+##   - KKT-Catalog                → plugins/, images/, pluginmaster.cn|global.json
+
+# --- WIP → release sync & local tooling (not source) ---
+scripts/
+sync-from-wip.ps1
+sync.py
+copy-wip.cmd
+.sync-complete
+.sync-verification.json
+test-write.txt
+
+# --- Distribution (KKT-Catalog hosts these) ---
+images/
+plugins/
+pluginmaster.cn.json
+pluginmaster.global.json
+pluginmaster.json
+dist/
+
+# --- User-specific / IDE ---
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+.idea/
+.vscode/
+
+# --- Build outputs ---
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+
+# --- NuGet ---
+*.nupkg
+**/packages/*
+!**/packages/build/
+
+# --- Dalamud local ---
+Dalamud/
+*.json.old
+
+# --- OS ---
+Thumbs.db
+.DS_Store
