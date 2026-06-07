@@ -42,26 +42,44 @@ internal static class GroupColorHelper
         return string.IsNullOrWhiteSpace(group.ParentId);
     }
 
-    internal static SoundGroup? GetRootGroup(Configuration config, string? groupId)
+    /// <summary>Root groups use LabelColorArgb; nested groups use OverrideColorArgb only.</summary>
+    internal static bool TryGetDisplayColor(Configuration config, SoundGroup group, out Vector4 color)
     {
-        var current = GroupHierarchy.FindById(config, groupId);
-        while (current != null && !IsRootGroup(current))
-        {
-            current = GroupHierarchy.FindById(config, current.ParentId);
-        }
-
-        return current;
+        var argb = IsRootGroup(group) ? group.LabelColorArgb : group.OverrideColorArgb;
+        return TryGetColor(argb, out color);
     }
 
-    internal static bool TryGetRootLabelColor(Configuration config, string? groupId, out Vector4 color)
+    internal static bool TryGetDisplayColorForGroupId(Configuration config, string? groupId, out Vector4 color)
     {
-        var root = GetRootGroup(config, groupId);
-        if (root == null)
+        var group = GroupHierarchy.FindById(config, groupId);
+        if (group == null)
         {
             color = default;
             return false;
         }
 
-        return TryGetColor(root.LabelColorArgb, out color);
+        return TryGetDisplayColor(config, group, out color);
+    }
+
+    /// <summary>Sets OverrideColorArgb from the immediate parent's LabelColorArgb (color field).</summary>
+    internal static void SyncOverrideColorFromParent(Configuration config, SoundGroup group)
+    {
+        if (string.IsNullOrWhiteSpace(group.ParentId))
+        {
+            return;
+        }
+
+        var parent = GroupHierarchy.FindById(config, group.ParentId);
+        if (parent == null)
+        {
+            return;
+        }
+
+        group.OverrideColorArgb = parent.LabelColorArgb;
+    }
+
+    internal static void InheritOverrideColorFromParent(Configuration config, SoundGroup group)
+    {
+        SyncOverrideColorFromParent(config, group);
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace SoundMixer;
 
@@ -6,9 +7,19 @@ internal static class PathResolver
 {
     internal static string ResolveScdPath(Configuration config, string rawPath, nint scdDataPtr = 0)
     {
+        return ResolveScdPath(config, rawPath, config.PathAliases, scdDataPtr);
+    }
+
+    internal static string ResolveScdPath(
+        Configuration config,
+        string rawPath,
+        IReadOnlyDictionary<string, string> aliases,
+        nint scdDataPtr = 0
+    )
+    {
         rawPath = rawPath.ToLowerInvariant().Trim();
 
-        var alias = LookupAlias(config, rawPath, scdDataPtr);
+        var alias = LookupAlias(aliases, rawPath, scdDataPtr);
         if (alias != null)
         {
             return alias;
@@ -16,7 +27,7 @@ internal static class PathResolver
 
         if (TrySplitSoundIndex(rawPath, out var scdPath, out var index))
         {
-            alias = LookupAlias(config, scdPath, scdDataPtr);
+            alias = LookupAlias(aliases, scdPath, scdDataPtr);
             if (alias != null)
             {
                 return BuildSpecificPath(alias, index);
@@ -77,9 +88,9 @@ internal static class PathResolver
         return false;
     }
 
-    private static string? LookupAlias(Configuration config, string path, nint scdDataPtr)
+    private static string? LookupAlias(IReadOnlyDictionary<string, string> aliases, string path, nint scdDataPtr)
     {
-        if (config.PathAliases.TryGetValue(path, out var alias))
+        if (aliases.TryGetValue(path, out var alias))
         {
             return alias.ToLowerInvariant().Trim();
         }
@@ -87,7 +98,7 @@ internal static class PathResolver
         if (scdDataPtr != 0)
         {
             var pointerKey = $"unknown/{scdDataPtr:X}".ToLowerInvariant();
-            if (config.PathAliases.TryGetValue(pointerKey, out alias))
+            if (aliases.TryGetValue(pointerKey, out alias))
             {
                 return alias.ToLowerInvariant().Trim();
             }

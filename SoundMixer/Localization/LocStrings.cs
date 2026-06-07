@@ -102,7 +102,11 @@ internal static class LocStrings
         [GroupCtxDelete] = "删除分组",
         [GroupKeepOne] = "至少保留一个分组",
         [GroupColor] = "分组颜色",
-        [GroupColorTip] = "为根级分组名称设置颜色，显示在左侧分组树中\n子分组不支持自定义颜色",
+        [GroupColorTip] = "仅根级分组可设置；用于分组树与监听日志中的名称颜色",
+        [GroupOverrideColor] = "显示颜色",
+        [GroupOverrideColorTip] = "子分组在分组树与监听日志中的名称颜色（与根级的「分组颜色」独立）",
+        [GroupSyncColor] = "同步颜色",
+        [GroupSyncColorTip] = "将显示颜色设为父级分组的「分组颜色」",
         [GroupColorChildHint] = "子分组不支持自定义颜色",
         [GroupHideFromMonitor] = "从监听日志隐藏此分组",
         [GroupHideFromMonitorTip] = "隐藏匹配此分组（含子分组）的音效，不在上方实时监听列表中显示\n默认关闭",
@@ -185,7 +189,13 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.0\n"
+            "v0.2.1\n"
+            + "· 可拖动调节 UI 分区：上方控制区 / 主内容、分组树 / 详情（Glamourer/OtterGui 分割条实现）\n"
+            + "· 记住 TopPanelHeight、LeftPanelWidth，松手后自动保存\n"
+            + "· 移动或缩放主窗口时立即保存位置与尺寸\n"
+            + "· 分组树展开/折叠状态修改后立即保存\n"
+            + "\n"
+            + "v0.2.0\n"
             + "· 外部插件 IPC 临时覆盖 API（tag + priority，登出自动清除）\n"
             + "· 可折叠「最近播放」/「IPC 临时覆盖」面板（不可从界面移除）\n"
             + "· 分组树显示父级叠乘有效音量；IPC 覆写项绿色「覆写」标注\n"
@@ -339,7 +349,11 @@ internal static class LocStrings
         [GroupCtxDelete] = "Delete Group",
         [GroupKeepOne] = "At least one group must remain",
         [GroupColor] = "Group Color",
-        [GroupColorTip] = "Set a color for this root group's name in the group tree.\nSub-groups cannot use custom colors.",
+        [GroupColorTip] = "Root groups only; used for names in the group tree and monitor log.",
+        [GroupOverrideColor] = "Display Color",
+        [GroupOverrideColorTip] = "Label color for sub-groups in the tree and monitor log (separate from the root Group Color).",
+        [GroupSyncColor] = "Sync Color",
+        [GroupSyncColorTip] = "Set display color to the parent group's Group Color.",
         [GroupColorChildHint] = "Sub-groups cannot use custom colors.",
         [GroupHideFromMonitor] = "Hide from monitor log",
         [GroupHideFromMonitorTip] = "Hide sounds matching this group (including sub-groups) from the live monitor above.\nOff by default.",
@@ -422,7 +436,13 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.0\n"
+            "v0.2.1\n"
+            + "· Resizable UI splitters: top controls vs main content, group tree vs details (Glamourer/OtterGui-style handles)\n"
+            + "· Persist TopPanelHeight and LeftPanelWidth; save on drag release\n"
+            + "· Auto-save main window position/size while moving or resizing\n"
+            + "· Auto-save group tree expand/collapse state\n"
+            + "\n"
+            + "v0.2.0\n"
             + "· External IPC temporary override API (tag + priority, cleared on logout)\n"
             + "· Collapsible Recent / IPC override panels (always visible, not dismissible)\n"
             + "· Group tree shows stacked effective volume; green override labels for IPC\n"

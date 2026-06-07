@@ -204,6 +204,7 @@ internal static class PresetManager
             IsBuiltIn = group.IsBuiltIn,
             IsExpanded = group.IsExpanded,
             LabelColorArgb = group.LabelColorArgb,
+            OverrideColorArgb = group.OverrideColorArgb,
             HideFromMonitorLog = group.HideFromMonitorLog,
         };
     }

@@ -1,7 +1,5 @@
 <Project Sdk="Dalamud.CN.NET.Sdk/15.0.0">
 
-    <Import Project="DalamudPackager.targets" Condition="Exists('DalamudPackager.targets')" />
-
     <PropertyGroup>
         <OutputType>Library</OutputType>
         <TargetFramework>net10.0-windows</TargetFramework>
@@ -14,9 +12,9 @@
         <Use_Dalamud_CN Condition="'$(Use_Dalamud_CN)' == ''">true</Use_Dalamud_CN>
         <DalamudApiLevel>15</DalamudApiLevel>
 
-        <Version>0.2.0</Version>
-        <AssemblyVersion>0.2.0.0</AssemblyVersion>
-        <FileVersion>0.2.0.0</FileVersion>
+        <Version>0.2.1</Version>
+        <AssemblyVersion>0.2.1.0</AssemblyVersion>
+        <FileVersion>0.2.1.0</FileVersion>
 
         <Author>KKT</Author>
         <Name>SoundMixer</Name>
@@ -26,7 +24,7 @@
         <Tags>sound;audio;volume;mixer;sfx;customization</Tags>
         <CategoryTags>utility;sound</CategoryTags>
         <IconUrl>https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png</IconUrl>
-        <Changelog>0.2.0.0: IPC overrides, collapsible UI panels, effective volume display, hook/monitor stability, DotNet.Glob side-by-side in zip.</Changelog>
+        <Changelog>0.2.1.0: Resizable UI splitters (top/main and group/details), persisted panel sizes, immediate layout save on window move/resize and group tree expand.</Changelog>
         <ManifestType>json</ManifestType>
         <AcceptsFeedback>true</AcceptsFeedback>
         <FeedbackMessage>Please include steps to reproduce and the sound path if reporting a matching issue.</FeedbackMessage>
@@ -50,6 +48,8 @@
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
         </None>
     </ItemGroup>
+
+    <Import Project="DalamudPackager.targets" Condition="Exists('DalamudPackager.targets')" />
 
     <Target Name="CleanStalePublishArtifacts" BeforeTargets="CoreBuild" Condition="'$(Configuration)' == 'Release'">
         <RemoveDir Directories="$(TargetDir)net10.0-windows" Condition="Exists('$(TargetDir)net10.0-windows')" />

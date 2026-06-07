@@ -8,7 +8,7 @@
   "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
   "IconUrl": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png",
   "DalamudApiLevel": 15,
-  "AssemblyVersion": "0.2.0.0",
+  "AssemblyVersion": "0.2.1.0",
   "Tags": [
     "sound",
     "audio",
@@ -21,7 +21,7 @@
     "utility",
     "sound"
   ],
-  "Changelog": "v0.2.0\n- IPC temporary override API for external plugins (tag + priority, cleared on logout)\n- Collapsible Recent / IPC override panels (always visible, not dismissible)\n- Group tree shows stacked effective volume; green override labels for IPC\n- IPC panel lists overrides by tag with clear-one and clear-all actions\n- Play hooks resolve via ClientStructs MemberFunctionPointers; single Info when unavailable\n- Live monitor scan crash guards; KNOWN_ISSUES.md documents CN signature gaps\n- Release zip ships DotNet.Glob.dll alongside plugin (no ILRepack merge)\n\nv0.1.0\n- Per-SCD-path volume mixing with groups, Glob patterns, and presets\n- Nested groups, drag-and-drop ordering, and root-group label colors\n- BGM / weather-ambient support with refresh actions\n- Live monitor, filters, path aliases, and expert mode (350% cap)\n- Chinese / English localization",
+  "Changelog": "v0.2.1\n- Resizable UI splitters: drag between top controls and main content, and between group tree and details (Glamourer/OtterGui-style handles)\n- Persist TopPanelHeight and LeftPanelWidth; save on drag release\n- Auto-save main window position/size while moving or resizing\n- Auto-save group tree expand/collapse state\n\nv0.2.0\n- IPC temporary override API for external plugins (tag + priority, cleared on logout)\n- Collapsible Recent / IPC override panels (always visible, not dismissible)\n- Group tree shows stacked effective volume; green override labels for IPC\n- IPC panel lists overrides by tag with clear-one and clear-all actions\n- Play hooks resolve via ClientStructs MemberFunctionPointers; single Info when unavailable\n- Live monitor scan crash guards; KNOWN_ISSUES.md documents CN signature gaps\n- Release zip ships DotNet.Glob.dll alongside plugin (no ILRepack merge)\n\nv0.1.0\n- Per-SCD-path volume mixing with groups, Glob patterns, and presets\n- Nested groups, drag-and-drop ordering, and root-group label colors\n- BGM / weather-ambient support with refresh actions\n- Live monitor, filters, path aliases, and expert mode (350% cap)\n- Chinese / English localization",
   "AcceptsFeedback": true,
   "FeedbackMessage": "Please include steps to reproduce and the sound path if reporting a matching issue."
 }

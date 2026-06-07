@@ -17,6 +17,8 @@ public class Configuration : IPluginConfiguration
     public const int MonitoringHistorySize = 100;
     public const int MonitoringDisplayCount = 20;
     public bool ShowRecentSounds { get; set; } = true;
+    public bool RecentSoundsPanelExpanded { get; set; } = true;
+    public bool IpcOverridesPanelExpanded { get; set; } = true;
     public bool HideMatchedMonitoringLogs { get; set; } = false;
     public string MonitoringHideKeywords { get; set; } = "";
     public LanguageMode UiLanguage { get; set; } = LanguageMode.System;
@@ -37,10 +39,14 @@ public class Configuration : IPluginConfiguration
     [NonSerialized]
     private Dictionary<string, Glob>? _cachedGlobs;
 
+    [NonSerialized]
+    internal static Action? OnSaved;
+
     public void Save()
     {
         PresetManager.SyncActivePreset(this);
         Services.PluginInterface.SavePluginConfig(this);
+        OnSaved?.Invoke();
     }
 
     public const float NormalMaxVolume = 2.0f;
@@ -97,6 +103,9 @@ public class SoundGroup
 
     /// <summary>ARGB label color for root groups. 0 = default theme text color.</summary>
     public uint LabelColorArgb { get; set; }
+
+    /// <summary>Display color for nested groups (tree + monitor log). Set once from parent LabelColorArgb when nested; editable afterward.</summary>
+    public uint OverrideColorArgb { get; set; }
 
     /// <summary>Hide sounds matching this group (and sub-groups) from the live monitor log.</summary>
     public bool HideFromMonitorLog { get; set; }

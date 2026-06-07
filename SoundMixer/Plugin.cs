@@ -3,6 +3,7 @@ using System.Linq;
 using Dalamud.Game.Command;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
+using SoundMixer.Api;
 using SoundMixer.Localization;
 using static SoundMixer.Localization.Loc.Keys;
 
@@ -16,6 +17,12 @@ public class Plugin : IDalamudPlugin
     internal Filter Filter { get; private set; }
     internal VolumeCalculator VolumeCalculator { get; private set; }
     internal PluginUI UI { get; private set; }
+    internal SoundMixerApi Api { get; private set; } = null!;
+
+    internal bool IsEffectivelyEnabled => Api?.EffectiveSnapshot.Enabled ?? Config.Enabled;
+    internal bool HasTemporaryOverrides => Api?.TemporaryOverrides.HasAnyOverrides ?? false;
+
+    private SoundMixerIpcProviders? _ipcProviders;
 
     private const string CommandName = "/soundmixer";
     private const string CommandNameShort = "/smix";
@@ -30,10 +37,7 @@ public class Plugin : IDalamudPlugin
         VolumeCalculator = new VolumeCalculator(Config);
         Filter = new Filter(this);
         
-        if (Config.Enabled)
-        {
-            Filter.Enable();
-        }
+        // Hook state is applied after Api initialization via RefreshEffectiveState.
 
         UI = new PluginUI(this);
 
@@ -59,6 +63,52 @@ public class Plugin : IDalamudPlugin
         MigrateVolumeAboveEngineCap();
         PresetManager.Initialize(Config);
         DefaultGroupLocalization.Apply(Config);
+
+        Api = new SoundMixerApi(this);
+        Configuration.OnSaved = () => Api.RefreshEffectiveState(notify: false);
+        _ipcProviders = new SoundMixerIpcProviders(Services.PluginInterface, Api);
+
+        Services.ClientState.Logout += OnLogout;
+    }
+
+    internal void SetSavedEnabled(bool enabled, bool refreshSounds = true)
+    {
+        if (Config.Enabled == enabled)
+        {
+            ApplyEffectiveHookState();
+            return;
+        }
+
+        Config.Enabled = enabled;
+        Config.Save();
+
+        if (refreshSounds && enabled)
+        {
+            Filter.RefreshAllActiveSounds();
+        }
+    }
+
+    internal void ApplyEffectiveHookState()
+    {
+        if (IsEffectivelyEnabled)
+        {
+            Filter.Enable();
+        }
+        else
+        {
+            Filter.Disable();
+        }
+    }
+
+    internal string ResolveSoundPath(string rawPath, nint scdDataPtr = 0)
+    {
+        var aliases = Api?.EffectiveSnapshot.PathAliases ?? Config.PathAliases;
+        return PathResolver.ResolveScdPath(Config, rawPath, aliases, scdDataPtr);
+    }
+
+    private void OnLogout(int type, int code)
+    {
+        Api.OnLogout();
     }
 
     private void MigrateVolumeAboveEngineCap()
@@ -269,6 +319,11 @@ public class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        _ipcProviders?.NotifyDisposed(Services.PluginInterface);
+        _ipcProviders?.Dispose();
+        Configuration.OnSaved = null;
+
+        Services.ClientState.Logout -= OnLogout;
         Services.Framework.Update -= OnFrameworkUpdate;
 
         if (UI != null)

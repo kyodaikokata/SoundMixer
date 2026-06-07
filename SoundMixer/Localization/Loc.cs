@@ -103,6 +103,10 @@ internal static class Loc
         internal const string GroupKeepOne = "Group.KeepOne";
         internal const string GroupColor = "Group.Color";
         internal const string GroupColorTip = "Group.Color.Tip";
+        internal const string GroupOverrideColor = "Group.OverrideColor";
+        internal const string GroupOverrideColorTip = "Group.OverrideColor.Tip";
+        internal const string GroupSyncColor = "Group.SyncColor";
+        internal const string GroupSyncColorTip = "Group.SyncColor.Tip";
         internal const string GroupColorChildHint = "Group.Color.ChildHint";
         internal const string GroupHideFromMonitor = "Group.HideFromMonitor";
         internal const string GroupHideFromMonitorTip = "Group.HideFromMonitor.Tip";

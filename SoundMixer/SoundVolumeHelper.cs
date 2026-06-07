@@ -126,17 +126,25 @@ internal static unsafe class SoundVolumeHelper
             return string.Empty;
         }
 
-        var handle = soundData->SoundResourceHandle;
-        if (handle != null)
+        try
         {
-            var name = handle->FileName.ToString();
-            if (!string.IsNullOrWhiteSpace(name))
+            var handle = soundData->SoundResourceHandle;
+            if (handle != null)
             {
-                return name.ToLowerInvariant();
+                var name = handle->FileName.ToString();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    return name.ToLowerInvariant();
+                }
             }
-        }
 
-        return ((ISoundData*)soundData)->GetFileName().ToString().ToLowerInvariant();
+            return ((ISoundData*)soundData)->GetFileName().ToString().ToLowerInvariant();
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Verbose(ex, "SoundMixer: failed to read path from SoundData");
+            return string.Empty;
+        }
     }
 
     private static string MakeKey(string path, uint soundNumber)

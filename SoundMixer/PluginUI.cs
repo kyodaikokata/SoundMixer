@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Utility;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Utility;
+using SoundMixer.Api;
 using SoundMixer.Localization;
 using static SoundMixer.Localization.Loc.Keys;
 
@@ -94,6 +95,7 @@ public partial class MainWindow : Window
     private const float DefaultWindowHeight = 600f;
     private const float MinWindowWidth = 400f;
     private const float MinWindowHeight = 300f;
+    private static readonly Vector4 OverrideVolumeColor = new(0.4f, 1f, 0.6f, 1f);
 
     public MainWindow(Plugin plugin) : base(
         "###SoundMixerMain",
@@ -129,6 +131,7 @@ public partial class MainWindow : Window
     {
         _cachedWindowPos = ImGui.GetWindowPos();
         _cachedWindowSize = ImGui.GetWindowSize() / ImGuiHelpers.GlobalScale;
+        PersistWindowLayout();
     }
 
     public void PersistWindowLayout()
@@ -180,6 +183,9 @@ public partial class MainWindow : Window
                     ImGui.Separator();
                 }
 
+                DrawTemporaryOverridesPanel();
+                ImGui.Separator();
+
                 DrawPresetBar();
                 ImGui.Separator();
 
@@ -223,7 +229,7 @@ public partial class MainWindow : Window
         ImGui.Text(L(StatusLabel));
         ImGui.SameLine();
 
-        if (Plugin.Config.Enabled)
+        if (Plugin.IsEffectivelyEnabled)
         {
             ImGui.TextColored(new Vector4(0, 1, 0, 1), L(StatusEnabled));
         }
@@ -232,23 +238,24 @@ public partial class MainWindow : Window
             ImGui.TextColored(new Vector4(1, 0, 0, 1), L(StatusDisabled));
         }
 
-        ImGui.SameLine();
-        if (ImGui.Button(Plugin.Config.Enabled ? L(BtnDisable) : L(BtnEnable)))
+        if (Plugin.HasTemporaryOverrides)
         {
-            Plugin.Config.Enabled = !Plugin.Config.Enabled;
-            if (Plugin.Config.Enabled)
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(1, 0.8f, 0.2f, 1), L(StatusIpcBadge));
+            if (ImGui.IsItemHovered())
             {
-                Plugin.Filter.Enable();
+                ImGui.SetTooltip(L(StatusIpcTip));
             }
-            else
-            {
-                Plugin.Filter.Disable();
-            }
-            Plugin.Config.Save();
         }
 
         ImGui.SameLine();
-        ImGui.BeginDisabled(!Plugin.Config.Enabled);
+        if (ImGui.Button(Plugin.Config.Enabled ? L(BtnDisable) : L(BtnEnable)))
+        {
+            Plugin.SetSavedEnabled(!Plugin.Config.Enabled);
+        }
+
+        ImGui.SameLine();
+        ImGui.BeginDisabled(!Plugin.IsEffectivelyEnabled);
         if (ImGui.Button(L(BtnRefreshAll)))
         {
             var count = Plugin.Filter.RefreshAllActiveSounds();
@@ -317,7 +324,18 @@ public partial class MainWindow : Window
 
     private void DrawMonitoringPanel()
     {
-        ImGui.Text(L(MonitorTitle));
+        ImGui.SetNextItemOpen(Plugin.Config.RecentSoundsPanelExpanded, ImGuiCond.Once);
+        var expanded = ImGui.CollapsingHeader(L(MonitorTitle));
+        if (expanded != Plugin.Config.RecentSoundsPanelExpanded)
+        {
+            Plugin.Config.RecentSoundsPanelExpanded = expanded;
+            Plugin.Config.Save();
+        }
+
+        if (!expanded)
+        {
+            return;
+        }
 
         var hideMatched = Plugin.Config.HideMatchedMonitoringLogs;
         if (ImGui.Checkbox(L(MonitorHideMatched), ref hideMatched))
@@ -396,7 +414,7 @@ public partial class MainWindow : Window
                 var volumeDb = VolumePerception.FormatDecibels(sound.Volume);
                 var label = $"{sound.LastPlayed:HH:mm:ss}  [{volumePct}% {volumeDb}]  {sound.Category}  {sound.FullPath}";
                 var groupId = Plugin.VolumeCalculator.GetMatchedGroupId(sound.FullPath);
-                var labelColor = GroupColorHelper.TryGetRootLabelColor(Plugin.Config, groupId, out var color)
+                var labelColor = GroupColorHelper.TryGetDisplayColorForGroupId(Plugin.Config, groupId, out var color)
                     ? color
                     : (Vector4?)null;
 
@@ -429,6 +447,139 @@ public partial class MainWindow : Window
         ImGui.EndChild();
 
         DrawPathAliasesSection();
+    }
+
+    private void DrawTemporaryOverridesPanel()
+    {
+        var summaries = Plugin.Api.GetTemporaryOverrideSummaries();
+        var header = summaries.Count > 0
+            ? LF(IpcOverridesTitleCount, summaries.Count)
+            : L(IpcOverridesTitle);
+
+        ImGui.SetNextItemOpen(Plugin.Config.IpcOverridesPanelExpanded, ImGuiCond.Once);
+        var expanded = ImGui.CollapsingHeader(header);
+        if (expanded != Plugin.Config.IpcOverridesPanelExpanded)
+        {
+            Plugin.Config.IpcOverridesPanelExpanded = expanded;
+            Plugin.Config.Save();
+        }
+
+        if (!expanded)
+        {
+            return;
+        }
+
+        ImGui.BeginDisabled(!Plugin.HasTemporaryOverrides);
+        if (ImGui.Button(L(IpcOverridesClearAll)))
+        {
+            Plugin.Api.RemoveAllTemporaryOverrides();
+            SetStatusMessage(L(MsgIpcOverridesClearedAll));
+        }
+
+        ImGui.EndDisabled();
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+        {
+            ImGui.SetTooltip(L(IpcOverridesClearAllTip));
+        }
+
+        if (ImGui.BeginChild("###IpcOverridesList", new Vector2(0, 110), true))
+        {
+            if (summaries.Count == 0)
+            {
+                ImGui.TextDisabled(L(IpcOverridesEmpty));
+            }
+            else
+            {
+                foreach (var summary in summaries)
+                {
+                    ImGui.PushID(summary.Tag);
+                    if (ImGui.Button("##IpcOverrideRow", new Vector2(-1, 0)))
+                    {
+                        Plugin.Api.RemoveTemporaryOverrides(summary.Tag);
+                        SetStatusMessage(LF(MsgIpcOverridesClearedTag, summary.Tag));
+                    }
+
+                    DrawIpcOverrideButtonLabel(summary);
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        ImGui.SetTooltip(L(IpcOverridesClearTagTip));
+                    }
+
+                    ImGui.PopID();
+                }
+            }
+        }
+
+        ImGui.EndChild();
+    }
+
+    private void DrawIpcOverrideButtonLabel(IpcOverrideSummary summary)
+    {
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        var drawList = ImGui.GetWindowDrawList();
+        var textY = min.Y + (max.Y - min.Y - ImGui.GetTextLineHeight()) * 0.5f;
+        var x = min.X + ImGui.GetStyle().FramePadding.X;
+
+        var normalColor = ImGui.GetColorU32(ImGuiCol.Text);
+        var overrideColor = GetOverrideVolumeColorU32();
+
+        void DrawPart(string text, uint color)
+        {
+            if (text.Length == 0)
+            {
+                return;
+            }
+
+            drawList.AddText(new Vector2(x, textY), color, text);
+            x += ImGui.CalcTextSize(text).X;
+        }
+
+        DrawPart(summary.Tag, normalColor);
+        if (summary.Priority != 0)
+        {
+            DrawPart(" · ", normalColor);
+            DrawPart(Loc.Format(IpcOverridePriority, summary.Priority), normalColor);
+        }
+
+        foreach (var line in summary.DetailLines)
+        {
+            DrawPart(" · ", normalColor);
+            DrawPart(line, normalColor);
+        }
+
+        foreach (var groupVolume in summary.GroupVolumeLines)
+        {
+            DrawPart(" · ", normalColor);
+            DrawPart(groupVolume.GroupName, normalColor);
+            DrawPart(LF(GroupTreeOverrideVolume, groupVolume.EffectivePercent), overrideColor);
+        }
+    }
+
+    private static uint GetOverrideVolumeColorU32() => ImGui.GetColorU32(OverrideVolumeColor);
+
+    private static void DrawNameWithVolumeSuffix(
+        string name,
+        string volumeSuffix,
+        bool suffixGreen,
+        Vector4? nameColor
+    )
+    {
+        var min = ImGui.GetItemRectMin();
+        var size = ImGui.GetItemRectSize();
+        var drawList = ImGui.GetWindowDrawList();
+        var textY = min.Y + (size.Y - ImGui.GetTextLineHeight()) * 0.5f;
+        var x = min.X + ImGui.GetStyle().FramePadding.X;
+
+        var nameColorU32 = nameColor.HasValue
+            ? ImGui.GetColorU32(nameColor.Value)
+            : ImGui.GetColorU32(ImGuiCol.Text);
+        var suffixColorU32 = suffixGreen ? GetOverrideVolumeColorU32() : nameColorU32;
+
+        drawList.AddText(new Vector2(x, textY), nameColorU32, name);
+        x += ImGui.CalcTextSize(name).X;
+        drawList.AddText(new Vector2(x, textY), suffixColorU32, volumeSuffix);
     }
 
     private bool PassesMonitoringFilters(SoundInfo sound)
@@ -739,6 +890,7 @@ public partial class MainWindow : Window
             if (ImGui.ArrowButton("expand", group.IsExpanded ? ImGuiDir.Down : ImGuiDir.Right))
             {
                 group.IsExpanded = !group.IsExpanded;
+                SaveGroupChanges();
             }
 
             ImGui.SameLine();
@@ -749,27 +901,23 @@ public partial class MainWindow : Window
             ImGui.SameLine();
         }
 
-        var volumePct = (int)(group.GroupVolume * 100);
-        var label = $"{group.Name} ({volumePct}%)";
+        var effectivePct = (int)(Plugin.Api.GetEffectiveGroupVolume(group.Id) * 100);
+        var hasOverride = Plugin.Api.HasTemporaryGroupVolume(group.Id);
+        var volumeSuffix = LF(
+            hasOverride ? GroupTreeOverrideVolume : GroupTreeEffectiveVolume,
+            effectivePct
+        );
         var isSelected = _selectedGroupId == group.Id;
-        var labelColor = depth == 0 && GroupColorHelper.TryGetColor(group.LabelColorArgb, out var color)
+        var labelColor = GroupColorHelper.TryGetDisplayColor(Plugin.Config, group, out var color)
             ? color
             : (Vector4?)null;
 
-        if (labelColor.HasValue)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, labelColor.Value);
-        }
-
-        if (ImGui.Selectable(label, isSelected))
+        if (ImGui.Selectable("##groupRow", isSelected))
         {
             _selectedGroupId = group.Id;
         }
 
-        if (labelColor.HasValue)
-        {
-            ImGui.PopStyleColor();
-        }
+        DrawNameWithVolumeSuffix(group.Name, volumeSuffix, hasOverride, labelColor);
 
         if (ImGui.BeginPopupContextItem($"groupctx##{group.Id}"))
         {
@@ -899,7 +1047,7 @@ public partial class MainWindow : Window
                 SetStatusMessage(LF(MsgRemovedParent, group.Name));
             }
 
-            ImGui.TextDisabled(L(GroupColorChildHint));
+            DrawGroupOverrideColorPicker(group);
         }
         else
         {
@@ -1032,8 +1180,7 @@ public partial class MainWindow : Window
 
     private void DrawGroupTitle(SoundGroup group)
     {
-        if (GroupColorHelper.IsRootGroup(group)
-            && GroupColorHelper.TryGetColor(group.LabelColorArgb, out var titleColor))
+        if (GroupColorHelper.TryGetDisplayColor(Plugin.Config, group, out var titleColor))
         {
             ImGui.PushStyleColor(ImGuiCol.Text, titleColor);
             ImGui.Text(group.Name);
@@ -1073,6 +1220,39 @@ public partial class MainWindow : Window
         }
 
         ImGui.EndDisabled();
+    }
+
+    private void DrawGroupOverrideColorPicker(SoundGroup group)
+    {
+        ImGui.Text(L(GroupOverrideColor));
+        ImGui.SameLine();
+
+        var color = GroupColorHelper.GetPickerColor(group.OverrideColorArgb);
+        if (ImGui.ColorEdit4(
+                $"##GroupOverrideColor{group.Id}",
+                ref color,
+                ImGuiColorEditFlags.NoInputs | ImGuiColorEditFlags.AlphaBar))
+        {
+            group.OverrideColorArgb = GroupColorHelper.FromVector4(color);
+            SaveGroupChanges();
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(L(GroupOverrideColorTip));
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button($"{L(GroupSyncColor)}##SyncGroupOverrideColor{group.Id}"))
+        {
+            GroupColorHelper.SyncOverrideColorFromParent(Plugin.Config, group);
+            SaveGroupChanges();
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(L(GroupSyncColorTip));
+        }
     }
 
     private void DrawVolumeSlider(SoundGroup group)
@@ -1151,7 +1331,7 @@ public partial class MainWindow : Window
         if (VolumePerception.IsAtEngineCap(value))
         {
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(1, 0, 0, 1), "[MAX]");
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), L(VolumeMaxBadge));
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip(VolumePerception.DescribeLinearGain(value));
@@ -1160,7 +1340,7 @@ public partial class MainWindow : Window
         else if (value > 2.0f)
         {
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), "[~]");
+            ImGui.TextColored(new Vector4(0.6f, 0.8f, 1f, 1f), L(VolumeApproxBadge));
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip(
@@ -1172,7 +1352,7 @@ public partial class MainWindow : Window
         else if (value > 1.0f)
         {
             ImGui.SameLine();
-            ImGui.TextColored(new Vector4(1, 1, 0, 1), "[+]");
+            ImGui.TextColored(new Vector4(1, 1, 0, 1), L(VolumeBoostBadge));
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip(LF(VolumeAbove100Tip, VolumePerception.FormatDecibels(value)));

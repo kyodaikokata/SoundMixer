@@ -1,0 +1,4 @@
+<Project>
+  <!-- 占位文件：存在时 ILRepack.Lib.MSBuild.Task 不会自动合并 OutputPath 下所有 *.dll（含 Dalamud.dll）。
+       实际合并逻辑见 SoundMixer.csproj 的 ILRepackDependencies（仅 SoundMixer + DotNet.Glob）。 -->
+</Project>

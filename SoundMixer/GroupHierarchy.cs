@@ -91,6 +91,7 @@ internal static class GroupHierarchy
 
         group.ParentId = parentId;
         MoveNearParent(config, group);
+        ApplyOverrideColorAfterParentChange(config, group);
         return true;
     }
 
@@ -104,6 +105,7 @@ internal static class GroupHierarchy
 
         group.ParentId = null;
         MoveToRootEnd(config, group);
+        ApplyOverrideColorAfterParentChange(config, group);
     }
 
     internal static void MoveBefore(Configuration config, string draggedId, string targetId)
@@ -122,6 +124,7 @@ internal static class GroupHierarchy
 
         dragged.ParentId = target.ParentId;
         Reinsert(config, draggedId, config.Groups.FindIndex(g => g.Id == targetId));
+        ApplyOverrideColorAfterParentChange(config, dragged);
     }
 
     internal static void MoveAfter(Configuration config, string draggedId, string targetId)
@@ -141,6 +144,7 @@ internal static class GroupHierarchy
         dragged.ParentId = target.ParentId;
         var targetIndex = config.Groups.FindIndex(g => g.Id == targetId);
         Reinsert(config, draggedId, targetIndex + 1);
+        ApplyOverrideColorAfterParentChange(config, dragged);
     }
 
     internal static void DeleteGroup(Configuration config, string groupId)
@@ -160,6 +164,7 @@ internal static class GroupHierarchy
         foreach (var child in GetChildren(config, groupId))
         {
             child.ParentId = parentId;
+            ApplyOverrideColorAfterParentChange(config, child);
         }
 
         foreach (var path in group.SoundPaths)
@@ -200,10 +205,22 @@ internal static class GroupHierarchy
             {
                 var insertIndex = FindInsertIndexAfterSubtree(config, parentId);
                 config.Groups.Insert(insertIndex, group);
+                ApplyOverrideColorAfterParentChange(config, group);
             }
         }
 
         return group;
+    }
+
+    internal static void ApplyOverrideColorAfterParentChange(Configuration config, SoundGroup group)
+    {
+        if (string.IsNullOrWhiteSpace(group.ParentId))
+        {
+            group.OverrideColorArgb = 0;
+            return;
+        }
+
+        GroupColorHelper.InheritOverrideColorFromParent(config, group);
     }
 
     internal static bool HasMatchingDescendant(Configuration config, SoundGroup group, Func<string, bool> matches)

@@ -19,12 +19,6 @@
         "requested": "[1.2.39, )",
         "resolved": "1.2.39",
         "contentHash": "fcFN01tDTIQqDuTwr1jUQK/geofiwjG5DycJQOnC72i1SsLAk1ELe+apBOuZ11UMQG8YKFZG1FgvjZPbqHyatg=="
-      },
-      "ILRepack.Lib.MSBuild.Task": {
-        "type": "Direct",
-        "requested": "[2.0.36.2, )",
-        "resolved": "2.0.37",
-        "contentHash": "ZbcsuqMm20VOCEgD8KcMjyXsHAeyS6cY2CP9ph8GYsOhHUf6sBl6q34eNsLhNEh2kLqOZaS1dynaTWDH9V3s7g=="
       }
     }
   }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Dalamud.Hooking;
 using FFXIVClientStructs.FFXIV.Client.Sound;
@@ -258,6 +259,8 @@ internal unsafe class Filter : IDisposable
 
     internal void Enable()
     {
+        var unavailableHooks = new List<string>();
+
         if (
             PlaySpecificSoundHook == null
             && Services.SigScanner.TryScanText(Signatures.PlaySpecificSound, out var playPtr)
@@ -270,12 +273,23 @@ internal unsafe class Filter : IDisposable
                 );
         }
 
-        TryCreateCallHook(Signatures.PlaySound, PlaySoundDetour, ref PlaySoundHook);
-        TryCreateCallHook(Signatures.PlaySystemSound, PlaySystemSoundDetour, ref PlaySystemSoundHook);
-        TryCreateCallHook(Signatures.PlayClipSound, PlayClipSoundDetour, ref PlayClipSoundHook);
-        TryCreateCallHook(Signatures.PlayMovieSound, PlayMovieSoundDetour, ref PlayMovieSoundHook);
-        TryCreateCallHook(Signatures.PlayBGMSound, PlayBGMSoundDetour, ref PlayBGMSoundHook);
-        TryCreateCallHook(Signatures.PlayWeatherSound, PlayWeatherSoundDetour, ref PlayWeatherSoundHook);
+        TryCreateSoundManagerHook(nameof(SoundManager.PlaySound), Signatures.PlaySound, PlaySoundDetour, ref PlaySoundHook, unavailableHooks);
+        TryCreateSoundManagerHook(nameof(SoundManager.PlaySystemSound), Signatures.PlaySystemSound, PlaySystemSoundDetour, ref PlaySystemSoundHook, unavailableHooks);
+        TryCreateSoundManagerHook(nameof(SoundManager.PlayClipSound), Signatures.PlayClipSound, PlayClipSoundDetour, ref PlayClipSoundHook, unavailableHooks);
+        TryCreateSoundManagerHook(nameof(SoundManager.PlayMovieSound), Signatures.PlayMovieSound, PlayMovieSoundDetour, ref PlayMovieSoundHook, unavailableHooks);
+        TryCreateSoundManagerHook(nameof(SoundManager.PlayBGMSound), Signatures.PlayBGMSound, PlayBGMSoundDetour, ref PlayBGMSoundHook, unavailableHooks);
+        TryCreateSoundManagerHook(nameof(SoundManager.PlayWeatherSound), Signatures.PlayWeatherSound, PlayWeatherSoundDetour, ref PlayWeatherSoundHook, unavailableHooks);
+
+        if (unavailableHooks.Count > 0)
+        {
+            Services.PluginLog.Info(
+                "SoundMixer: "
+                    + $"{unavailableHooks.Count} SoundManager play hook(s) unavailable on this client build "
+                    + $"({string.Join(", ", unavailableHooks)}). "
+                    + "Per-path volume still works via PlaySpecificSound and SetVolume enforcement; "
+                    + "BGM/weather rely on active-sound scanning when play hooks are missing."
+            );
+        }
 
         if (
             GetResourceSyncHook == null
@@ -337,21 +351,28 @@ internal unsafe class Filter : IDisposable
 
     internal void EnforceTrackedVolumes()
     {
-        var soundManager = SoundManager.Instance();
-        if (soundManager == null)
+        try
         {
-            return;
-        }
+            var soundManager = SoundManager.Instance();
+            if (soundManager == null)
+            {
+                return;
+            }
 
-        if (Plugin.Config.Enabled)
+            if (Plugin.IsEffectivelyEnabled)
+            {
+                EnforceTrackedVolumesInList(soundManager->ActiveSoundDataListHead);
+                EnforceTrackedSound(soundManager->WeatherSoundData);
+            }
+
+            ScanActiveSoundsForMonitoring(soundManager);
+            SoundVolumeTracker.PruneInactive();
+            PruneInactiveMonitoredSounds(soundManager);
+        }
+        catch (Exception ex)
         {
-            EnforceTrackedVolumesInList(soundManager->ActiveSoundDataListHead);
-            EnforceTrackedSound(soundManager->WeatherSoundData);
+            Services.PluginLog.Error(ex, "SoundMixer: EnforceTrackedVolumes failed");
         }
-
-        ScanActiveSoundsForMonitoring(soundManager);
-        SoundVolumeTracker.PruneInactive();
-        PruneInactiveMonitoredSounds(soundManager);
     }
 
     private void EnforceTrackedSound(SoundData* soundData)
@@ -378,7 +399,7 @@ internal unsafe class Filter : IDisposable
 
     internal int RefreshAllActiveSounds()
     {
-        if (!Plugin.Config.Enabled)
+        if (!Plugin.IsEffectivelyEnabled)
         {
             return 0;
         }
@@ -412,7 +433,7 @@ internal unsafe class Filter : IDisposable
 
     internal int RefreshGroupSounds(string groupId)
     {
-        if (!Plugin.Config.Enabled || string.IsNullOrWhiteSpace(groupId))
+        if (!Plugin.IsEffectivelyEnabled || string.IsNullOrWhiteSpace(groupId))
         {
             return 0;
         }
@@ -510,7 +531,7 @@ internal unsafe class Filter : IDisposable
             return false;
         }
 
-        var resolvedPath = PathResolver.ResolveScdPath(Plugin.Config, path);
+        var resolvedPath = Plugin.ResolveSoundPath(path);
         var specificPath = PathResolver.BuildSpecificPath(resolvedPath, (int)soundData->SoundNumber);
         return Plugin.VolumeCalculator.SoundBelongsToGroupTree(specificPath, groupId)
                || Plugin.VolumeCalculator.SoundBelongsToGroupTree(resolvedPath, groupId);
@@ -560,10 +581,12 @@ internal unsafe class Filter : IDisposable
         GetResourceAsyncHook?.Dispose();
     }
 
-    private void TryCreateCallHook<T>(
+    private void TryCreateSoundManagerHook<T>(
+        string memberName,
         string callSignature,
         T detour,
-        ref Hook<T>? hookField
+        ref Hook<T>? hookField,
+        List<string> unavailableHooks
     )
         where T : Delegate
     {
@@ -572,13 +595,19 @@ internal unsafe class Filter : IDisposable
             return;
         }
 
-        if (!Services.SigScanner.TryResolveCallTarget(callSignature, out var target))
+        var address = SoundManagerHookResolver.ResolveMemberFunctionAddress(memberName);
+        if (address == nint.Zero && Services.SigScanner.TryScanText(callSignature, out var scanned))
         {
-            Services.PluginLog.Warning($"SoundMixer: failed to resolve call target for {callSignature}");
+            address = scanned;
+        }
+
+        if (address == nint.Zero)
+        {
+            unavailableHooks.Add(memberName);
             return;
         }
 
-        hookField = Services.GameInteropProvider.HookFromAddress(target, detour);
+        hookField = Services.GameInteropProvider.HookFromAddress(address, detour);
     }
 
     private void TryInstallSetVolumeHook()
@@ -648,7 +677,7 @@ internal unsafe class Filter : IDisposable
 
     private void SetVolumeDetour(SoundData* self, float volume, uint fadeDuration)
     {
-        if (Plugin.Config.Enabled)
+        if (Plugin.IsEffectivelyEnabled)
         {
             try
             {
@@ -673,7 +702,7 @@ internal unsafe class Filter : IDisposable
 
         SetVolumeHook!.Original(self, volume, fadeDuration);
 
-        if (Plugin.Config.Enabled)
+        if (Plugin.IsEffectivelyEnabled)
         {
             try
             {
@@ -689,7 +718,7 @@ internal unsafe class Filter : IDisposable
     private float GetVolumeDetour(SoundData* self)
     {
         var rawVolume = GetVolumeHook!.Original(self);
-        if (!Plugin.Config.Enabled)
+        if (!Plugin.IsEffectivelyEnabled)
         {
             return rawVolume;
         }
@@ -714,7 +743,7 @@ internal unsafe class Filter : IDisposable
         try
         {
             multiplier = PlaySpecificSoundDetourInner(a1, idx, out path);
-            if (Plugin.Config.Enabled)
+            if (Plugin.IsEffectivelyEnabled)
             {
                 SoundVolumeHelper.BeginPlay(path, (uint)idx, multiplier);
             }
@@ -730,7 +759,7 @@ internal unsafe class Filter : IDisposable
         {
             var result = PlaySpecificSoundHook!.Original(a1, idx);
 
-            if (Plugin.Config.Enabled && Math.Abs(multiplier - 1.0f) > 0.001f)
+            if (Plugin.IsEffectivelyEnabled && Math.Abs(multiplier - 1.0f) > 0.001f)
             {
                 if (!SoundVolumeHelper.WasSetVolumeCalledThisPlay)
                 {
@@ -858,12 +887,16 @@ internal unsafe class Filter : IDisposable
         }
 
         var scdPtr = (nint)scdData;
-        if (!Scds.TryGetValue(scdPtr, out path))
+        if (!Scds.TryGetValue(scdPtr, out var cachedPath))
         {
             path = $"unknown/{scdPtr:X}";
         }
+        else
+        {
+            path = cachedPath;
+        }
 
-        path = PathResolver.ResolveScdPath(Plugin.Config, path, scdPtr);
+        path = Plugin.ResolveSoundPath(path, scdPtr);
         var specificPath = PathResolver.BuildSpecificPath(path, idx);
         var multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
 
@@ -1014,13 +1047,10 @@ internal unsafe class Filter : IDisposable
         {
             if (path != null)
             {
-                normalizedPath = PathResolver.ResolveScdPath(
-                    Plugin.Config,
-                    SoundVolumeHelper.NormalizePath(path)
-                );
+                normalizedPath = Plugin.ResolveSoundPath(SoundVolumeHelper.NormalizePath(path));
                 multiplier = ResolveScdPathMultiplier(normalizedPath);
 
-                if (Plugin.Config.Enabled)
+                if (Plugin.IsEffectivelyEnabled)
                 {
                     SoundVolumeHelper.BeginPlay(normalizedPath, 0, multiplier);
                 }
@@ -1031,7 +1061,7 @@ internal unsafe class Filter : IDisposable
 
             if (
                 result != null
-                && Plugin.Config.Enabled
+                && Plugin.IsEffectivelyEnabled
                 && Math.Abs(multiplier - 1.0f) > 0.001f
                 && !SoundVolumeHelper.WasSetVolumeCalledThisPlay
             )
@@ -1070,10 +1100,7 @@ internal unsafe class Filter : IDisposable
         {
             if (path != null)
             {
-                normalizedPath = PathResolver.ResolveScdPath(
-                    Plugin.Config,
-                    SoundVolumeHelper.NormalizePath(path)
-                );
+                normalizedPath = Plugin.ResolveSoundPath(SoundVolumeHelper.NormalizePath(path));
             }
 
             PlayWeatherSoundHook!.Original(self, path, fadeDuration);
@@ -1084,7 +1111,7 @@ internal unsafe class Filter : IDisposable
             }
 
             var weatherSound = self->WeatherSoundData;
-            if (weatherSound != null && Plugin.Config.Enabled)
+            if (weatherSound != null && Plugin.IsEffectivelyEnabled)
             {
                 var multiplier = ResolveScdPathMultiplier(normalizedPath);
                 if (Math.Abs(multiplier - 1.0f) > 0.001f)
@@ -1133,10 +1160,7 @@ internal unsafe class Filter : IDisposable
         {
             if (path != null)
             {
-                normalizedPath = PathResolver.ResolveScdPath(
-                    Plugin.Config,
-                    SoundVolumeHelper.NormalizePath(path)
-                );
+                normalizedPath = Plugin.ResolveSoundPath(SoundVolumeHelper.NormalizePath(path));
                 var specificPath = PathResolver.BuildSpecificPath(normalizedPath, (int)soundNumber);
                 multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
 
@@ -1145,7 +1169,7 @@ internal unsafe class Filter : IDisposable
                     EnqueueMonitoredSound(normalizedPath, (int)soundNumber, specificPath, multiplier);
                 }
 
-                if (Plugin.Config.Enabled)
+                if (Plugin.IsEffectivelyEnabled)
                 {
                     SoundVolumeHelper.BeginPlay(normalizedPath, soundNumber, multiplier);
                 }
@@ -1156,7 +1180,7 @@ internal unsafe class Filter : IDisposable
 
             if (
                 result != null
-                && Plugin.Config.Enabled
+                && Plugin.IsEffectivelyEnabled
                 && Math.Abs(multiplier - 1.0f) > 0.001f
                 && !SoundVolumeHelper.WasSetVolumeCalledThisPlay
             )
@@ -1195,16 +1219,27 @@ internal unsafe class Filter : IDisposable
 
         _lastActiveScanUtc = now;
 
-        var seen = new HashSet<nint>();
-        ScanSoundListForMonitoring(soundManager->ActiveSoundDataListHead, seen);
-        ScanSingleSoundForMonitoring(soundManager->WeatherSoundData, seen);
-
-        foreach (var ptr in KnownActiveMonitoredSounds.Keys)
+        try
         {
-            if (!seen.Contains(ptr))
+            var seen = new HashSet<nint>();
+            ScanSoundListForMonitoring(soundManager->ActiveSoundDataListHead, seen);
+
+            if (soundManager->WeatherSoundData != null)
             {
-                KnownActiveMonitoredSounds.TryRemove(ptr, out _);
+                ScanSingleSoundForMonitoring(soundManager->WeatherSoundData, seen);
             }
+
+            foreach (var ptr in KnownActiveMonitoredSounds.Keys)
+            {
+                if (!seen.Contains(ptr))
+                {
+                    KnownActiveMonitoredSounds.TryRemove(ptr, out _);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Error(ex, "SoundMixer: active sound monitoring scan failed");
         }
     }
 
@@ -1212,8 +1247,15 @@ internal unsafe class Filter : IDisposable
     {
         foreach (var ptr in KnownActiveMonitoredSounds.Keys)
         {
-            var soundData = (SoundData*)ptr;
-            if (soundData == null || !soundData->IsActive)
+            try
+            {
+                var soundData = (SoundData*)ptr;
+                if (soundData == null || !soundData->IsActive)
+                {
+                    KnownActiveMonitoredSounds.TryRemove(ptr, out _);
+                }
+            }
+            catch
             {
                 KnownActiveMonitoredSounds.TryRemove(ptr, out _);
             }
@@ -1222,45 +1264,71 @@ internal unsafe class Filter : IDisposable
 
     private void ScanSoundListForMonitoring(SoundData* listHead, HashSet<nint> seen)
     {
+        const int maxNodes = 4096;
+        var nodeCount = 0;
+        var visitedNodes = new HashSet<nint>();
+
         for (
             ISoundData* node = (ISoundData*)listHead;
-            node != null;
+            node != null && nodeCount < maxNodes;
             node = node->Next
         )
         {
+            var nodePtr = (nint)node;
+            if (!visitedNodes.Add(nodePtr))
+            {
+                Services.PluginLog.Warning("SoundMixer: cycle detected in active sound list during monitoring scan");
+                break;
+            }
+
+            nodeCount++;
             ScanSingleSoundForMonitoring((SoundData*)node, seen);
+        }
+
+        if (nodeCount >= maxNodes)
+        {
+            Services.PluginLog.Warning(
+                $"SoundMixer: active sound monitoring scan hit node limit ({maxNodes})"
+            );
         }
     }
 
     private void ScanSingleSoundForMonitoring(SoundData* soundData, HashSet<nint> seen)
     {
-        if (soundData == null || !soundData->IsActive)
+        try
         {
-            return;
+            if (soundData == null || !soundData->IsActive)
+            {
+                return;
+            }
+
+            var ptr = (nint)soundData;
+            seen.Add(ptr);
+
+            var path = SoundVolumeHelper.GetPathFromSoundData(soundData);
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            var resolvedPath = Plugin.ResolveSoundPath(path, ptr);
+            var soundNumber = (int)soundData->SoundNumber;
+            var specificPath = PathResolver.BuildSpecificPath(resolvedPath, soundNumber);
+            var fingerprint = $"{specificPath}#{soundNumber}";
+
+            if (KnownActiveMonitoredSounds.TryGetValue(ptr, out var previous) && previous == fingerprint)
+            {
+                return;
+            }
+
+            KnownActiveMonitoredSounds[ptr] = fingerprint;
+            var multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
+            EnqueueMonitoredSound(resolvedPath, soundNumber, specificPath, multiplier, isStreaming: true);
         }
-
-        var ptr = (nint)soundData;
-        seen.Add(ptr);
-
-        var path = SoundVolumeHelper.GetPathFromSoundData(soundData);
-        if (string.IsNullOrWhiteSpace(path))
+        catch (Exception ex)
         {
-            return;
+            Services.PluginLog.Verbose(ex, "SoundMixer: skipped one active sound during monitoring scan");
         }
-
-        var resolvedPath = PathResolver.ResolveScdPath(Plugin.Config, path);
-        var soundNumber = (int)soundData->SoundNumber;
-        var specificPath = PathResolver.BuildSpecificPath(resolvedPath, soundNumber);
-        var fingerprint = $"{specificPath}#{soundNumber}";
-
-        if (KnownActiveMonitoredSounds.TryGetValue(ptr, out var previous) && previous == fingerprint)
-        {
-            return;
-        }
-
-        KnownActiveMonitoredSounds[ptr] = fingerprint;
-        var multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
-        EnqueueMonitoredSound(resolvedPath, soundNumber, specificPath, multiplier, isStreaming: true);
     }
 
     private void EnqueueMonitoredSound(

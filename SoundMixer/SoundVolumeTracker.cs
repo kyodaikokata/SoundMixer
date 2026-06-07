@@ -347,25 +347,22 @@ internal static unsafe class SoundVolumeTracker
 
 
     internal static void PruneInactive()
-
     {
-
         foreach (var (ptr, _) in Tracked)
-
         {
-
-            var soundData = (SoundData*)ptr;
-
-            if (soundData == null || !soundData->IsActive)
-
+            try
             {
-
-                Tracked.TryRemove(ptr, out _);
-
+                var soundData = (SoundData*)ptr;
+                if (soundData == null || !soundData->IsActive)
+                {
+                    Tracked.TryRemove(ptr, out _);
+                }
             }
-
+            catch
+            {
+                Tracked.TryRemove(ptr, out _);
+            }
         }
-
     }
 
 

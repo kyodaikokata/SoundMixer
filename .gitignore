@@ -1,35 +1,13 @@
-## Source-only Git repo (github.com/kyodaikokata/SoundMixer).
-## Build scripts, sync tools, icons, zips, and user manifests live elsewhere:
-##   - WorkInProgress/SoundMixer  → scripts/, dist/, pluginmaster drafts, images/
-##   - KKT-Catalog                → plugins/, images/, pluginmaster.cn|global.json
+## Source repo (github.com/kyodaikokata/SoundMixer).
+## Install zips and user manifests live in KKT-Catalog.
 
-# --- WIP → release sync & local tooling (not source) ---
-scripts/
-sync-from-wip.ps1
-sync.py
-copy-wip.cmd
-.sync-complete
-.sync-verification.json
-test-write.txt
-
-# --- Distribution (KKT-Catalog hosts these) ---
-images/
-plugins/
-pluginmaster.cn.json
-pluginmaster.global.json
-pluginmaster.json
-dist/
-
-# --- User-specific / IDE ---
+# User-specific files
 *.suo
 *.user
 *.userosscache
 *.sln.docstates
-.vs/
-.idea/
-.vscode/
 
-# --- Build outputs ---
+# Build results
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/
@@ -39,16 +17,35 @@ x86/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
+dist/
 
-# --- NuGet ---
+# Visual Studio / IDE
+.vs/
+.idea/
+.vscode/
+
+# NuGet Packages
 *.nupkg
 **/packages/*
 !**/packages/build/
 
-# --- Dalamud local ---
+# Distribution (hosted by KKT-Catalog, not this repo)
+plugins/
+pluginmaster.cn.json
+pluginmaster.global.json
+pluginmaster.json
+
+# Build/publish scripts (local only — not tracked in source repo)
+*.ps1
+
+# Local sync marker
+.sync-complete
+.sync-verification.json
+
+# Dalamud
 Dalamud/
 *.json.old
 
-# --- OS ---
+# OS files
 Thumbs.db
 .DS_Store
