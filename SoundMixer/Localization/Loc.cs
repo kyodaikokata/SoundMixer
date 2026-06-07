@@ -20,6 +20,8 @@ internal static class Loc
         internal const string StatusLabel = "Status.Label";
         internal const string StatusEnabled = "Status.Enabled";
         internal const string StatusDisabled = "Status.Disabled";
+        internal const string StatusIpcBadge = "Status.IpcBadge";
+        internal const string StatusIpcTip = "Status.IpcTip";
         internal const string BtnEnable = "Btn.Enable";
         internal const string BtnDisable = "Btn.Disable";
         internal const string BtnRefreshAll = "Btn.RefreshAll";
@@ -43,6 +45,21 @@ internal static class Loc
         internal const string MonitorHint = "Monitor.Hint";
         internal const string MonitorEmpty = "Monitor.Empty";
         internal const string MonitorPlayingTag = "Monitor.PlayingTag";
+
+        internal const string IpcOverridesTitle = "IpcOverrides.Title";
+        internal const string IpcOverridesTitleCount = "IpcOverrides.TitleCount";
+        internal const string IpcOverridesEmpty = "IpcOverrides.Empty";
+        internal const string IpcOverridesClearAll = "IpcOverrides.ClearAll";
+        internal const string IpcOverridesClearAllTip = "IpcOverrides.ClearAll.Tip";
+        internal const string IpcOverridesClearTagTip = "IpcOverrides.ClearTag.Tip";
+        internal const string IpcOverrideEnabledOn = "IpcOverrides.EnabledOn";
+        internal const string IpcOverrideEnabledOff = "IpcOverrides.EnabledOff";
+        internal const string IpcOverridePreset = "IpcOverrides.Preset";
+        internal const string GroupTreeEffectiveVolume = "Group.TreeEffectiveVolume";
+        internal const string GroupTreeOverrideVolume = "Group.TreeOverrideVolume";
+        internal const string IpcOverridePriority = "IpcOverrides.Priority";
+        internal const string MsgIpcOverridesClearedTag = "Msg.IpcOverrides.ClearedTag";
+        internal const string MsgIpcOverridesClearedAll = "Msg.IpcOverrides.ClearedAll";
 
         internal const string PresetLabel = "Preset.Label";
         internal const string PresetEmpty = "Preset.Empty";
@@ -194,6 +211,9 @@ internal static class Loc
         internal const string VolumeAtCap = "Volume.AtCap";
         internal const string VolumeLinearTip = "Volume.LinearTip";
         internal const string VolumeAbove100Tip = "Volume.Above100Tip";
+        internal const string VolumeMaxBadge = "Volume.MaxBadge";
+        internal const string VolumeApproxBadge = "Volume.ApproxBadge";
+        internal const string VolumeBoostBadge = "Volume.BoostBadge";
 
         internal const string ClassifyJobWar = "Classify.JobWar";
         internal const string ClassifyJobSam = "Classify.JobSam";

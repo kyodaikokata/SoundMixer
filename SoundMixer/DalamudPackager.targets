@@ -1,4 +1,4 @@
-﻿<Project>
+<Project>
   <!-- Disable DalamudPackager's default Release zip; CreateCleanPluginZip owns packaging. -->
   <Target Name="DefaultDalamudPackagerRelease" />
 </Project>

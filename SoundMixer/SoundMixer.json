@@ -3,12 +3,12 @@
   "Name": "SoundMixer",
   "InternalName": "SoundMixer",
   "Punchline": "Advanced FFXIV Sound Effect Volume Mixer",
-  "Description": "Per-SCD-path volume control for FFXIV sound effects.\n\nFeatures:\n- Custom groups with Glob path patterns, drag-and-drop nesting, and root-group colors\n- Presets for different group and volume layouts\n- Live monitor with hide-matched/hide-keyword filters and unknown/ path fixes\n- BGM and weather/ambient loop hooks with per-group and global refresh\n- 0-200% linear gain; Expert Mode up to 350% (audible engine cap)\n- Chinese / English UI localization\n\nCommands: /soundmixer, /smix",
+  "Description": "Per-SCD-path volume control for FFXIV sound effects.\n\nFeatures:\n- Custom groups with Glob path patterns, drag-and-drop nesting, and root-group colors\n- Presets for different group and volume layouts\n- Live monitor with collapsible panels, hide-matched/hide-keyword filters, and unknown/ path fixes\n- BGM and weather/ambient loop hooks with per-group and global refresh\n- IPC temporary overrides for external plugins (tag + priority, session-only)\n- Group tree shows stacked effective volume; IPC overrides highlighted in green\n- 0-200% linear gain; Expert Mode up to 350% (audible engine cap)\n- Chinese / English UI localization\n\nCommands: /soundmixer, /smix",
   "ApplicableVersion": "any",
   "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
   "IconUrl": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png",
   "DalamudApiLevel": 15,
-  "AssemblyVersion": "0.1.0.0",
+  "AssemblyVersion": "0.2.0.0",
   "Tags": [
     "sound",
     "audio",
@@ -21,7 +21,7 @@
     "utility",
     "sound"
   ],
-  "Changelog": "v0.1.0\n- Per-SCD-path volume mixing with groups, Glob patterns, and presets\n- Nested groups, drag-and-drop ordering, and root-group label colors\n- BGM / weather-ambient support with refresh actions\n- Live monitor, filters, path aliases, and expert mode (350% cap)\n- Chinese / English localization",
+  "Changelog": "v0.2.0\n- IPC temporary override API for external plugins (tag + priority, cleared on logout)\n- Collapsible Recent / IPC override panels (always visible, not dismissible)\n- Group tree shows stacked effective volume; green override labels for IPC\n- IPC panel lists overrides by tag with clear-one and clear-all actions\n- Play hooks resolve via ClientStructs MemberFunctionPointers; single Info when unavailable\n- Live monitor scan crash guards; KNOWN_ISSUES.md documents CN signature gaps\n- Release zip ships DotNet.Glob.dll alongside plugin (no ILRepack merge)\n\nv0.1.0\n- Per-SCD-path volume mixing with groups, Glob patterns, and presets\n- Nested groups, drag-and-drop ordering, and root-group label colors\n- BGM / weather-ambient support with refresh actions\n- Live monitor, filters, path aliases, and expert mode (350% cap)\n- Chinese / English localization",
   "AcceptsFeedback": true,
   "FeedbackMessage": "Please include steps to reproduce and the sound path if reporting a matching issue."
 }

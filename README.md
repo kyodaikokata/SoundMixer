@@ -1,5 +1,7 @@
 # SoundMixer
 
+**Current version:** 0.2.0.0 · Dalamud API 15
+
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
 Per-SCD-path volume control for FFXIV sound effects — custom groups, Glob patterns, presets, live monitor, and BGM/ambient support.
@@ -52,7 +54,8 @@ Open the window from Dalamud plugin list (gear icon) as well.
 - **Per-path volume** — match `sound/...` paths or Glob patterns (e.g. `**/weaponskill/**`)
 - **Nested groups** — drag-and-drop ordering; root groups can have custom label colors
 - **Presets** — save and switch full layouts (groups + volumes)
-- **Live monitor** — recent sounds with filters; optional hide matched / keyword hide
+- **IPC temporary overrides** — session-only control for external plugins (tag + priority)
+- **Live monitor** — recent sounds with filters; collapsible panels; optional hide matched / keyword hide
 - **BGM & weather/ambient** — group-based control with refresh actions
 - **Expert mode** — up to **350%** engine-audible cap (default UI max 200%)
 - **Localization** — 中文 / English UI
@@ -67,7 +70,7 @@ Open the window from Dalamud plugin list (gear icon) as well.
 
 ### Feedback
 
-Use GitHub Issues on this repository. When reporting matching problems, include the **sound path** and steps to reproduce.
+Use GitHub Issues on this repository. When reporting matching problems, include the **sound path** and steps to reproduce. See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md).
 
 ---
 
@@ -89,7 +92,8 @@ Use GitHub Issues on this repository. When reporting matching problems, include 
 - **按路径音量** — 匹配 `sound/...` 或 Glob（如 `**/weaponskill/**`）
 - **嵌套分组** — 拖放排序；根分组可自定义标签颜色
 - **预设** — 保存/切换整套分组与音量
-- **实时监听** — 显示最近播放音效；可隐藏已匹配项或按关键词过滤
+- **IPC 临时覆盖** — 供外部插件会话内控制（tag + priority）
+- **实时监听** — 显示最近播放音效；可折叠面板；可隐藏已匹配项或按关键词过滤
 - **BGM / 天气环境音** — 分组控制与刷新
 - **专家模式** — 最高约 **350%** 听感上限（默认界面最大 200%）
 - **界面语言** — 中文 / English
@@ -104,7 +108,7 @@ Use GitHub Issues on this repository. When reporting matching problems, include 
 
 ### 反馈
 
-请在 GitHub 本仓库提交 Issue。反馈匹配问题时请附上 **音效路径** 与复现步骤。
+请在 GitHub 本仓库提交 Issue。反馈匹配问题时请附上 **音效路径** 与复现步骤。已知问题见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。
 
 ---
 

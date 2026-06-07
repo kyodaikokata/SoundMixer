@@ -20,6 +20,8 @@ internal static class LocStrings
         [StatusLabel] = "状态",
         [StatusEnabled] = "启用",
         [StatusDisabled] = "禁用",
+        [StatusIpcBadge] = "(IPC)",
+        [StatusIpcTip] = "当前存在外部插件设置的临时覆盖，登出或手动清除后恢复已保存配置",
         [BtnEnable] = "启用",
         [BtnDisable] = "禁用",
         [BtnRefreshAll] = "刷新所有音效",
@@ -43,6 +45,21 @@ internal static class LocStrings
         [MonitorHint] = "保留最近 {0} 条记录，列表最多显示 {1} 条 (筛选后在全部记录中选取)。BGM/环境音等持续播放的音效会标 {2}。右键 →「添加到分组」",
         [MonitorEmpty] = "(无符合筛选条件的音效)",
         [MonitorPlayingTag] = "[播放中]",
+
+        [IpcOverridesTitle] = ">> 外部插件临时覆盖 (IPC)",
+        [IpcOverridesTitleCount] = ">> 外部插件临时覆盖 (IPC) · {0}",
+        [IpcOverridesEmpty] = "(当前无外部插件临时设置)",
+        [IpcOverridesClearAll] = "清除全部临时覆盖",
+        [IpcOverridesClearAllTip] = "移除所有外部插件通过 IPC 设置的临时覆盖，恢复为已保存配置",
+        [IpcOverridesClearTagTip] = "点击移除此插件的全部临时覆盖",
+        [IpcOverrideEnabledOn] = "启用",
+        [IpcOverrideEnabledOff] = "禁用",
+        [IpcOverridePreset] = "预设: {0}",
+        [GroupTreeEffectiveVolume] = "(实际 {0}%)",
+        [GroupTreeOverrideVolume] = "(覆写 {0}%)",
+        [IpcOverridePriority] = "优先级 {0}",
+        [MsgIpcOverridesClearedTag] = "已清除 {0} 的临时覆盖",
+        [MsgIpcOverridesClearedAll] = "已清除全部临时覆盖",
 
         [PresetLabel] = "预设",
         [PresetEmpty] = "(无预设)",
@@ -168,7 +185,16 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.1.0\n"
+            "v0.2.0\n"
+            + "· 外部插件 IPC 临时覆盖 API（tag + priority，登出自动清除）\n"
+            + "· 可折叠「最近播放」/「IPC 临时覆盖」面板（不可从界面移除）\n"
+            + "· 分组树显示父级叠乘有效音量；IPC 覆写项绿色「覆写」标注\n"
+            + "· IPC 面板按 tag 列出覆盖，支持清除单项或全部\n"
+            + "· 播放 hook 优先 ClientStructs 解析；不可用 hook 合并为一条 Info\n"
+            + "· 实时监听扫描崩溃防护；已知问题见 KNOWN_ISSUES.md\n"
+            + "· 发行包附带 DotNet.Glob.dll（不再 ILRepack 合并）\n"
+            + "\n"
+            + "v0.1.0\n"
             + "· 按 SCD 路径精细调节音效音量\n"
             + "· 分组、Glob 路径模式、预设方案\n"
             + "· 嵌套分组与拖拽排序\n"
@@ -202,6 +228,9 @@ internal static class LocStrings
         [VolumeAtCap] = "已达实测引擎听感上限（约 350%）",
         [VolumeLinearTip] = "线性 {0}%  约合 {1}",
         [VolumeAbove100Tip] = "音量已放大至 100% 以上 ({0})",
+        [VolumeMaxBadge] = "[MAX]",
+        [VolumeApproxBadge] = "[~]",
+        [VolumeBoostBadge] = "[+]",
 
         [ClassifyJobWar] = "职业技能/战士",
         [ClassifyJobSam] = "职业技能/武士",
@@ -228,6 +257,8 @@ internal static class LocStrings
         [StatusLabel] = "Status",
         [StatusEnabled] = "Enabled",
         [StatusDisabled] = "Disabled",
+        [StatusIpcBadge] = "(IPC)",
+        [StatusIpcTip] = "Temporary overrides from other plugins are active. Saved settings return after logout or manual clear.",
         [BtnEnable] = "Enable",
         [BtnDisable] = "Disable",
         [BtnRefreshAll] = "Refresh All Sounds",
@@ -251,6 +282,21 @@ internal static class LocStrings
         [MonitorHint] = "Keeps the latest {0} entries, shows up to {1} after filters. Looping BGM/ambient sounds are marked {2}. Right-click → Add to group.",
         [MonitorEmpty] = "(No sounds match the current filters)",
         [MonitorPlayingTag] = "[Playing]",
+
+        [IpcOverridesTitle] = ">> External IPC Overrides",
+        [IpcOverridesTitleCount] = ">> External IPC Overrides · {0}",
+        [IpcOverridesEmpty] = "(No active temporary overrides from other plugins)",
+        [IpcOverridesClearAll] = "Clear All Temporary Overrides",
+        [IpcOverridesClearAllTip] = "Remove all session-only IPC overrides and revert to saved settings",
+        [IpcOverridesClearTagTip] = "Click to remove this plugin's temporary overrides",
+        [IpcOverrideEnabledOn] = "Enabled",
+        [IpcOverrideEnabledOff] = "Disabled",
+        [IpcOverridePreset] = "Preset: {0}",
+        [GroupTreeEffectiveVolume] = "(effective {0}%)",
+        [GroupTreeOverrideVolume] = "(override {0}%)",
+        [IpcOverridePriority] = "Priority {0}",
+        [MsgIpcOverridesClearedTag] = "Cleared temporary overrides for {0}",
+        [MsgIpcOverridesClearedAll] = "Cleared all temporary overrides",
 
         [PresetLabel] = "Preset",
         [PresetEmpty] = "(No presets)",
@@ -376,7 +422,16 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.1.0\n"
+            "v0.2.0\n"
+            + "· External IPC temporary override API (tag + priority, cleared on logout)\n"
+            + "· Collapsible Recent / IPC override panels (always visible, not dismissible)\n"
+            + "· Group tree shows stacked effective volume; green override labels for IPC\n"
+            + "· IPC panel lists overrides by tag with per-tag and clear-all actions\n"
+            + "· Play hooks resolve via ClientStructs; unavailable hooks log once as Info\n"
+            + "· Live monitor scan crash guards; see KNOWN_ISSUES.md\n"
+            + "· Release zip ships DotNet.Glob.dll (no ILRepack merge)\n"
+            + "\n"
+            + "v0.1.0\n"
             + "· Per-SCD-path volume control\n"
             + "· Groups, Glob patterns, and presets\n"
             + "· Nested groups with drag-and-drop\n"
@@ -410,6 +465,9 @@ internal static class LocStrings
         [VolumeAtCap] = "At audible engine cap (~350%)",
         [VolumeLinearTip] = "Linear {0}% ≈ {1}",
         [VolumeAbove100Tip] = "Boosted above 100% ({0})",
+        [VolumeMaxBadge] = "[MAX]",
+        [VolumeApproxBadge] = "[~]",
+        [VolumeBoostBadge] = "[+]",
 
         [ClassifyJobWar] = "Job/WAR",
         [ClassifyJobSam] = "Job/SAM",

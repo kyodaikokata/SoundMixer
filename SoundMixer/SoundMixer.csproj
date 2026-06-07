@@ -1,4 +1,4 @@
-﻿<Project Sdk="Dalamud.CN.NET.Sdk/15.0.0">
+<Project Sdk="Dalamud.CN.NET.Sdk/15.0.0">
 
     <Import Project="DalamudPackager.targets" Condition="Exists('DalamudPackager.targets')" />
 
@@ -14,19 +14,19 @@
         <Use_Dalamud_CN Condition="'$(Use_Dalamud_CN)' == ''">true</Use_Dalamud_CN>
         <DalamudApiLevel>15</DalamudApiLevel>
 
-        <Version>0.1.0</Version>
-        <AssemblyVersion>0.1.0.0</AssemblyVersion>
-        <FileVersion>0.1.0.0</FileVersion>
+        <Version>0.2.0</Version>
+        <AssemblyVersion>0.2.0.0</AssemblyVersion>
+        <FileVersion>0.2.0.0</FileVersion>
 
         <Author>KKT</Author>
         <Name>SoundMixer</Name>
         <Punchline>Advanced FFXIV Sound Effect Volume Mixer</Punchline>
-        <Description>Per-SCD-path volume control for FFXIV sound effects. Custom groups, Glob patterns, presets, live monitor, BGM/ambient support, and 0-350% gain. Commands: /soundmixer, /smix</Description>
+        <Description>Per-SCD-path volume control for FFXIV sound effects. Custom groups, Glob patterns, presets, live monitor, IPC temporary overrides, BGM/ambient support, and 0-350% gain. Commands: /soundmixer, /smix</Description>
         <RepoUrl>https://github.com/kyodaikokata/SoundMixer</RepoUrl>
         <Tags>sound;audio;volume;mixer;sfx;customization</Tags>
         <CategoryTags>utility;sound</CategoryTags>
         <IconUrl>https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png</IconUrl>
-        <Changelog>0.1.0.0: Initial release with per-path volume mixing, groups, presets, BGM/ambient support, and localization.</Changelog>
+        <Changelog>0.2.0.0: IPC overrides, collapsible UI panels, effective volume display, hook/monitor stability, DotNet.Glob side-by-side in zip.</Changelog>
         <ManifestType>json</ManifestType>
         <AcceptsFeedback>true</AcceptsFeedback>
         <FeedbackMessage>Please include steps to reproduce and the sound path if reporting a matching issue.</FeedbackMessage>
@@ -42,7 +42,6 @@
 
     <ItemGroup>
         <PackageReference Include="DotNet.Glob" Version="3.1.3" />
-        <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.36.2" PrivateAssets="all" />
     </ItemGroup>
 
     <ItemGroup>
@@ -57,29 +56,20 @@
         <RemoveDir Directories="$(TargetDir)$(AssemblyName)" Condition="Exists('$(TargetDir)$(AssemblyName)')" />
     </Target>
 
-    <Target Name="ILRepackDependencies" AfterTargets="Build" BeforeTargets="CreateCleanPluginZip" Condition="'$(Configuration)' == 'Release' AND Exists('$(TargetDir)DotNet.Glob.dll')">
-        <PropertyGroup>
-            <_RepackedDll>$(IntermediateOutputPath)repacked\$(AssemblyName).dll</_RepackedDll>
-        </PropertyGroup>
-        <MakeDir Directories="$(IntermediateOutputPath)repacked" />
-        <Copy SourceFiles="$(DalamudLibPath)Dalamud.dll" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('$(DalamudLibPath)Dalamud.dll')" />
-        <ILRepack
-            Parallel="true"
-            DebugInfo="true"
-            InputAssemblies="$(TargetPath);$(TargetDir)DotNet.Glob.dll"
-            OutputFile="$(_RepackedDll)"
-            TargetKind="Dll"
-            LibraryPath="$(TargetDir)" />
-        <Copy SourceFiles="$(_RepackedDll)" DestinationFiles="$(TargetPath)" />
+    <Target Name="RemoveShippedRuntimeAssemblies" AfterTargets="Build" BeforeTargets="CreateCleanPluginZip" Condition="'$(Configuration)' == 'Release'">
+        <Delete Files="$(TargetDir)Dalamud.dll" Condition="Exists('$(TargetDir)Dalamud.dll')" />
+        <Delete Files="$(TargetDir)Dalamud.xml" Condition="Exists('$(TargetDir)Dalamud.xml')" />
+        <Delete Files="$(TargetDir)$(AssemblyName).deps.json" Condition="Exists('$(TargetDir)$(AssemblyName).deps.json')" />
     </Target>
 
-    <Target Name="CreateCleanPluginZip" AfterTargets="ILRepackDependencies" Condition="'$(Configuration)' == 'Release'">
+    <Target Name="CreateCleanPluginZip" AfterTargets="RemoveShippedRuntimeAssemblies" Condition="'$(Configuration)' == 'Release'">
         <PropertyGroup>
             <_PublishDir>$(TargetDir)$(AssemblyName)\</_PublishDir>
             <_ZipStaging>$(IntermediateOutputPath)pluginzip\</_ZipStaging>
             <_ZipPath>$(_PublishDir)latest.zip</_ZipPath>
             <_ManifestPath>$(TargetDir)$(AssemblyName).json</_ManifestPath>
             <_PdbPath>$(TargetDir)$(AssemblyName).pdb</_PdbPath>
+            <_GlobDllPath>$(TargetDir)DotNet.Glob.dll</_GlobDllPath>
         </PropertyGroup>
 
         <MakeDir Directories="$(_PublishDir)" />
@@ -92,13 +82,15 @@
 
         <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(_ZipStaging)" />
         <Copy SourceFiles="$(_PdbPath)" DestinationFolder="$(_ZipStaging)" Condition="Exists('$(_PdbPath)')" />
+        <Copy SourceFiles="$(_GlobDllPath)" DestinationFolder="$(_ZipStaging)" Condition="Exists('$(_GlobDllPath)')" />
         <Copy SourceFiles="$(_ManifestPath)" DestinationFolder="$(_ZipStaging)" Condition="Exists('$(_ManifestPath)')" />
         <Copy SourceFiles="$(_SourceManifest)" DestinationFiles="$(_ZipStaging)$(AssemblyName).json" Condition="!Exists('$(_ZipStaging)$(AssemblyName).json') AND Exists('$(_SourceManifest)')" />
 
         <Error Text="SoundMixer.json missing in zip staging. Ensure SoundMixer.json is copied to output or present in project directory." Condition="!Exists('$(_ZipStaging)$(AssemblyName).json')" />
+        <Error Text="DotNet.Glob.dll missing in output. Ensure DotNet.Glob package is restored and copied to $(TargetDir)." Condition="!Exists('$(_ZipStaging)DotNet.Glob.dll')" />
 
         <Delete Files="$(_ZipPath)" Condition="Exists('$(_ZipPath)')" />
-        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -LiteralPath '$(_ZipStaging)$(AssemblyName).dll','$(_ZipStaging)$(AssemblyName).pdb','$(_ZipStaging)$(AssemblyName).json' -DestinationPath '$(_ZipPath)' -Force&quot;" />
+        <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -LiteralPath '$(_ZipStaging)$(AssemblyName).dll','$(_ZipStaging)DotNet.Glob.dll','$(_ZipStaging)$(AssemblyName).pdb','$(_ZipStaging)$(AssemblyName).json' -DestinationPath '$(_ZipPath)' -Force&quot;" />
 
         <Copy SourceFiles="$(_ManifestPath)" DestinationFiles="$(_PublishDir)$(AssemblyName).json" SkipUnchangedFiles="true" Condition="Exists('$(_ManifestPath)')" />
     </Target>
