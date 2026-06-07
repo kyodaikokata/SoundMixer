@@ -11,6 +11,7 @@ internal static class LocStrings
 
         [TabMain] = "混音器",
         [TabChangelog] = "更新日志",
+        [TabBlacklist] = "黑名单",
 
         [LangLabel] = "语言",
         [LangSystem] = "跟随系统",
@@ -28,6 +29,9 @@ internal static class LocStrings
         [BtnRefreshAllTip] = "立即将当前音量规则应用到所有正在播放的音效\n适用于 BGM、环境音等持续播放、不会重新触发的音频\n修改分组音量后可点此立即生效",
         [ExpertMode] = "专家模式 (最大350%)",
         [ExpertModeTip] = "专家模式允许设置 200% - 350%\n实测引擎听感上限约在 300% - 350% 区间\n超过 350% 不会再更响，插件会自动钳制\n200%=+6dB, 350%≈+10.9dB",
+        [SafeMode] = "安全模式",
+        [SafeModeTip] = "开启后：骑乘及上下马过渡期间挂起全部音频 hook，跳过活跃音效链表扫描\n"
+            + "关闭后（默认）：骑乘时仍应用音量规则；若在外勤机等坐骑上崩溃，请开启此项或依赖官方黑名单",
         [Monitoring] = "实时监听",
         [MonitoringTip] = "在顶部面板显示最近播放的音效路径与匹配分组",
         [TrackedScd] = "已追踪 SCD: {0}",
@@ -45,6 +49,38 @@ internal static class LocStrings
         [MonitorHint] = "保留最近 {0} 条记录，列表最多显示 {1} 条 (筛选后在全部记录中选取)。BGM/环境音等持续播放的音效会标 {2}。右键 →「添加到分组」",
         [MonitorEmpty] = "(无符合筛选条件的音效)",
         [MonitorPlayingTag] = "[播放中]",
+
+        [BlacklistTabHint] = "黑名单中的音效不会被混音、强制刷新或监听扫描。玩家自定义与官方列表分开维护；官方条目只读。",
+        [BlacklistUserSection] = "我的黑名单",
+        [BlacklistUserHint] = "可新建关键词、具体路径或 Glob 规则，并填写备注。右键条目可删除。",
+        [BlacklistUserCount] = "自定义条目: {0}",
+        [BlacklistUserEmpty] = "（暂无自定义黑名单）",
+        [BlacklistOfficialSection] = "官方黑名单（只读）",
+        [BlacklistOfficialHint] = "由插件作者在 GitHub 维护，启动时自动同步；此处不可编辑。",
+        [BlacklistOfficialMeta] = "官方 rev {0} · {1} 条",
+        [BlacklistOfficialEmpty] = "（暂无官方条目）",
+        [BlacklistMatchKind] = "匹配类型",
+        [BlacklistMatchLabel] = "匹配内容",
+        [BlacklistMatchTip] = "关键词: 路径子串\n路径: 完整 SCD 路径（如 sound/battle/etc/foo.scd）\nGlob: 如 **/guideroid**",
+        [BlacklistNoteLabel] = "备注",
+        [BlacklistAddEntry] = "添加",
+        [BlacklistDeleteEntry] = "删除",
+        [BlacklistKindKeyword] = "关键词",
+        [BlacklistKindPath] = "路径",
+        [BlacklistKindGlob] = "Glob",
+        [BlacklistRefreshOfficial] = "拉取官方列表",
+        [BlacklistRefreshOfficialFetching] = "拉取中…",
+        [BlacklistRefreshOfficialCooldown] = "拉取官方列表 ({0}s)",
+        [BlacklistRefreshOfficialTip] = "从 GitHub 手动拉取最新 OfficialSoundBlacklist.json（10 秒冷却）",
+        [BlacklistCtxAddPath] = "加入我的黑名单（路径）",
+        [BlacklistCtxAddGlob] = "加入我的黑名单（Glob）",
+        [MsgBlacklistAdded] = "已加入我的黑名单: {0}",
+        [MsgBlacklistAddedUser] = "已添加自定义黑名单条目",
+        [MsgBlacklistRemoved] = "已删除自定义黑名单条目",
+        [MsgBlacklistSynced] = "正在拉取官方黑名单…",
+        [MsgBlacklistFetchUpdated] = "官方黑名单已更新 (rev {0}，{1} 条)",
+        [MsgBlacklistFetchUpToDate] = "官方黑名单已是最新 (rev {0})",
+        [MsgBlacklistFetchFailed] = "拉取官方黑名单失败，请稍后再试",
 
         [IpcOverridesTitle] = ">> 外部插件临时覆盖 (IPC)",
         [IpcOverridesTitleCount] = ">> 外部插件临时覆盖 (IPC) · {0}",
@@ -189,7 +225,49 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.1\n"
+            "v0.2.2.0\n"
+            + "· 骑乘 hook 挂起改为可选「安全模式」（默认关闭，位于专家模式后）\n"
+            + "· 黑名单 Tab 支持手动拉取官方列表（10 秒冷却）\n"
+            + "\n"
+            + "v0.2.1.9\n"
+            + "· 官方黑名单备注支持中英双语（OfficialSoundBlacklist.json notes.zh / notes.en）\n"
+            + "\n"
+            + "v0.2.1.8\n"
+            + "· 黑名单独立标签页：玩家自定义（可编辑+备注）与官方列表（只读）分开显示\n"
+            + "· 支持关键词 / 路径 / Glob 三种匹配类型\n"
+            + "\n"
+            + "v0.2.1.7\n"
+            + "· 音效黑名单初版（已改为 0.2.1.8 独立 Tab 设计）\n"
+            + "\n"
+            + "v0.2.1.6\n"
+            + "· 骑乘期间挂起全部音频 hook（播放 / SetVolume / 资源加载）\n"
+            + "· 骑乘时跳过 RefreshGroupSounds 活跃音效链表扫描（修复 HeelsDesignLinker IPC 脚步声刷新）\n"
+            + "· IPC 触发 Enable 前先同步坐骑 guard\n"
+            + "\n"
+            + "v0.2.1.5\n"
+            + "· 坐骑过渡期间物理卸载 SetVolume/GetVolume vtable hook（非仅 detour 透传）\n"
+            + "· 坐骑音效路径触发时提前进入 guard（早于 Mounted 条件旗标）\n"
+            + "· 上下马后 5 秒 grace；HeelsDesignLinker 等 IPC 重载 hook 时仍遵守 guard\n"
+            + "\n"
+            + "v0.2.1.4\n"
+            + "· 坐骑 / 上下马过渡期间音频 hook 完全透传，不再缩放或写字段\n"
+            + "· SetVolume 在过渡节点上不再跳过 Original 调用\n"
+            + "\n"
+            + "v0.2.1.3\n"
+            + "· 修复外勤机坐骑上启用插件即崩溃：不再对全部活跃音效解析路径 / 调用 GetFileName\n"
+            + "· 每帧音量强制仅作用于已跟踪音效；淡出进行中跳过写字段\n"
+            + "· 启用插件时不再自动刷新全部正在播放音效\n"
+            + "\n"
+            + "v0.2.1.2\n"
+            + "· 修复上/下坐骑时 SetVolume hook 可能导致的崩溃\n"
+            + "· 无效或已释放 SoundData 不再调用 Original / 写字段；淡出（fadeDuration>0）时不强制写字段\n"
+            + "· 音量刷新路径不再重入 SetVolume Original\n"
+            + "\n"
+            + "v0.2.1.1\n"
+            + "· 修复实时监听 / 音量强制扫描时访问已释放 native 指针导致的崩溃\n"
+            + "· VirtualQuery 内存校验后再解引用；统一安全链表遍历（环检测 + 节点上限）\n"
+            + "\n"
+            + "v0.2.1.0\n"
             + "· 可拖动调节 UI 分区：上方控制区 / 主内容、分组树 / 详情（Glamourer/OtterGui 分割条实现）\n"
             + "· 记住 TopPanelHeight、LeftPanelWidth，松手后自动保存\n"
             + "· 移动或缩放主窗口时立即保存位置与尺寸\n"
@@ -258,6 +336,7 @@ internal static class LocStrings
 
         [TabMain] = "Mixer",
         [TabChangelog] = "Changelog",
+        [TabBlacklist] = "Blacklist",
 
         [LangLabel] = "Language",
         [LangSystem] = "Follow System",
@@ -275,6 +354,11 @@ internal static class LocStrings
         [BtnRefreshAllTip] = "Apply current volume rules to all playing sounds immediately.\nUseful for BGM and ambient loops that do not re-trigger.\nClick after changing group volume for instant effect.",
         [ExpertMode] = "Expert Mode (max 350%)",
         [ExpertModeTip] = "Expert mode allows 200% - 350% linear gain.\nAudible engine cap is around 300% - 350%.\nValues above 350% are clamped.\n200% = +6 dB, 350% ≈ +10.9 dB",
+        [SafeMode] = "Safe Mode",
+        [SafeModeTip] = "When on: suspend all audio hooks while mounted and during mount/dismount transitions; "
+            + "skip active-sound list scans.\n"
+            + "When off (default): volume rules still apply while mounted. "
+            + "Enable if you crash on mounts such as Guideroid, or rely on the official blacklist.",
         [Monitoring] = "Live Monitor",
         [MonitoringTip] = "Show recently played sound paths and matched groups at the top",
         [TrackedScd] = "Tracked SCD: {0}",
@@ -292,6 +376,38 @@ internal static class LocStrings
         [MonitorHint] = "Keeps the latest {0} entries, shows up to {1} after filters. Looping BGM/ambient sounds are marked {2}. Right-click → Add to group.",
         [MonitorEmpty] = "(No sounds match the current filters)",
         [MonitorPlayingTag] = "[Playing]",
+
+        [BlacklistTabHint] = "Blacklisted sounds skip mixing, refresh, enforcement, and monitor scans. User and official lists are separate; official entries are read-only.",
+        [BlacklistUserSection] = "My blacklist",
+        [BlacklistUserHint] = "Add keyword, exact path, or Glob rules with an optional note. Right-click an entry to delete.",
+        [BlacklistUserCount] = "Custom entries: {0}",
+        [BlacklistUserEmpty] = "(No custom blacklist entries)",
+        [BlacklistOfficialSection] = "Official blacklist (read-only)",
+        [BlacklistOfficialHint] = "Maintained by the author on GitHub and auto-synced on startup. Not editable here.",
+        [BlacklistOfficialMeta] = "Official rev {0} · {1} entries",
+        [BlacklistOfficialEmpty] = "(No official entries)",
+        [BlacklistMatchKind] = "Match type",
+        [BlacklistMatchLabel] = "Match",
+        [BlacklistMatchTip] = "Keyword: path substring\nPath: full SCD path (e.g. sound/battle/etc/foo.scd)\nGlob: e.g. **/guideroid**",
+        [BlacklistNoteLabel] = "Note",
+        [BlacklistAddEntry] = "Add",
+        [BlacklistDeleteEntry] = "Delete",
+        [BlacklistKindKeyword] = "Keyword",
+        [BlacklistKindPath] = "Path",
+        [BlacklistKindGlob] = "Glob",
+        [BlacklistRefreshOfficial] = "Fetch official list",
+        [BlacklistRefreshOfficialFetching] = "Fetching…",
+        [BlacklistRefreshOfficialCooldown] = "Fetch official list ({0}s)",
+        [BlacklistRefreshOfficialTip] = "Manually fetch OfficialSoundBlacklist.json from GitHub (10s cooldown)",
+        [BlacklistCtxAddPath] = "Add to my blacklist (path)",
+        [BlacklistCtxAddGlob] = "Add to my blacklist (Glob)",
+        [MsgBlacklistAdded] = "Added to my blacklist: {0}",
+        [MsgBlacklistAddedUser] = "Custom blacklist entry added",
+        [MsgBlacklistRemoved] = "Custom blacklist entry removed",
+        [MsgBlacklistSynced] = "Fetching official blacklist…",
+        [MsgBlacklistFetchUpdated] = "Official blacklist updated (rev {0}, {1} entries)",
+        [MsgBlacklistFetchUpToDate] = "Official blacklist is already up to date (rev {0})",
+        [MsgBlacklistFetchFailed] = "Failed to fetch official blacklist; try again later",
 
         [IpcOverridesTitle] = ">> External IPC Overrides",
         [IpcOverridesTitleCount] = ">> External IPC Overrides · {0}",
@@ -436,7 +552,49 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.1\n"
+            "v0.2.2.0\n"
+            + "· Mount hook suspension is now optional Safe Mode (off by default, after Expert Mode)\n"
+            + "· Blacklist tab: manual fetch for official list (10s cooldown)\n"
+            + "\n"
+            + "v0.2.1.9\n"
+            + "· Official blacklist notes: bilingual zh/en in OfficialSoundBlacklist.json\n"
+            + "\n"
+            + "v0.2.1.8\n"
+            + "· Dedicated Blacklist tab: editable user entries (with notes) vs read-only official list\n"
+            + "· Keyword / path / Glob match kinds\n"
+            + "\n"
+            + "v0.2.1.7\n"
+            + "· Initial blacklist (superseded by 0.2.1.8 tab design)\n"
+            + "\n"
+            + "v0.2.1.6\n"
+            + "· Suspend all audio hooks while mounted (play + SetVolume + resource)\n"
+            + "· Skip RefreshGroupSounds list scans during mount (HeelsDesignLinker footstep IPC)\n"
+            + "· Sync mount guard before IPC-driven Enable()\n"
+            + "\n"
+            + "v0.2.1.5\n"
+            + "· Physically disable SetVolume/GetVolume vtable hooks during mount transition (not just detour passthrough)\n"
+            + "· Early mount guard when mount SFX paths play (before Mounted/Mounting flags)\n"
+            + "· 5s grace after mount/dismount; IPC re-enable respects guard\n"
+            + "\n"
+            + "v0.2.1.4\n"
+            + "· Passthrough audio hooks while mounted and during mount/dismount transitions\n"
+            + "· SetVolume no longer skips Original on transitional SoundData nodes\n"
+            + "\n"
+            + "v0.2.1.3\n"
+            + "· Fix Guideroid mount crash when enabling plugin: stop probing every active sound / calling GetFileName\n"
+            + "· Per-frame enforcement only for tracked sounds; skip field writes while native fade is running\n"
+            + "· Enabling the plugin no longer auto-refreshes all playing sounds\n"
+            + "\n"
+            + "v0.2.1.2\n"
+            + "· Fix mount/dismount crashes in SetVolume hook\n"
+            + "· Skip Original/field writes on invalid SoundData; no field poke during native fades (fadeDuration>0)\n"
+            + "· Volume refresh no longer re-enters SetVolume Original\n"
+            + "\n"
+            + "v0.2.1.1\n"
+            + "· Fix Framework.Update crashes when scanning freed SoundData native pointers (live monitor / volume enforcement)\n"
+            + "· VirtualQuery validation before dereferencing; unified safe linked-list traversal\n"
+            + "\n"
+            + "v0.2.1.0\n"
             + "· Resizable UI splitters: top controls vs main content, group tree vs details (Glamourer/OtterGui-style handles)\n"
             + "· Persist TopPanelHeight and LeftPanelWidth; save on drag release\n"
             + "· Auto-save main window position/size while moving or resizing\n"

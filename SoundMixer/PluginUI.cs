@@ -196,6 +196,12 @@ public partial class MainWindow : Window
                 ImGui.EndTabItem();
             }
 
+            if (ImGui.BeginTabItem($"{L(TabBlacklist)}###SoundMixerBlacklistTab"))
+            {
+                DrawBlacklistTab();
+                ImGui.EndTabItem();
+            }
+
             if (ImGui.BeginTabItem($"{L(TabChangelog)}###SoundMixerChangelogTab"))
             {
                 DrawChangelogTab();
@@ -287,6 +293,20 @@ public partial class MainWindow : Window
         if (ImGui.IsItemHovered())
         {
             ImGui.SetTooltip(L(ExpertModeTip));
+        }
+
+        ImGui.SameLine();
+        var safeMode = Plugin.Config.SafeMode;
+        if (ImGui.Checkbox(L(SafeMode), ref safeMode))
+        {
+            Plugin.Config.SafeMode = safeMode;
+            Plugin.Config.Save();
+            Plugin.ApplyEffectiveHookState();
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(L(SafeModeTip));
         }
 
         ImGui.SameLine();
@@ -659,6 +679,24 @@ public partial class MainWindow : Window
                 SetStatusMessage(LF(MsgAddedPattern, pattern, group.Name));
             });
             ImGui.EndMenu();
+        }
+
+        var scdPathForBlacklist = GetScdPath(NormalizeSoundPath(soundPath));
+        if (ImGui.MenuItem(L(BlacklistCtxAddPath)))
+        {
+            if (Plugin.AddUserBlacklistEntry(SoundBlacklistMatchKind.Path, scdPathForBlacklist, string.Empty))
+            {
+                SetStatusMessage(LF(MsgBlacklistAdded, scdPathForBlacklist));
+            }
+        }
+
+        if (ImGui.MenuItem(L(BlacklistCtxAddGlob)))
+        {
+            var pattern = $"**/{scdPathForBlacklist}**";
+            if (Plugin.AddUserBlacklistEntry(SoundBlacklistMatchKind.Glob, pattern, string.Empty))
+            {
+                SetStatusMessage(LF(MsgBlacklistAdded, pattern));
+            }
         }
 
         if (ImGui.MenuItem(L(CtxIndividualVol)))

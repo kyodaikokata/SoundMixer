@@ -61,14 +61,49 @@ public class Plugin : IDalamudPlugin
         MigrateClearGroupIcons();
         MigrateBuiltinSoundGroups();
         MigrateVolumeAboveEngineCap();
+        MigrateSoundBlacklistEntries();
         PresetManager.Initialize(Config);
         DefaultGroupLocalization.Apply(Config);
 
+        OfficialBlacklistSync.Initialize(this);
+
         Api = new SoundMixerApi(this);
-        Configuration.OnSaved = () => Api.RefreshEffectiveState(notify: false);
+        Configuration.OnSaved = () =>
+        {
+            OfficialBlacklistSync.RebuildFromConfig(Config);
+            Api.RefreshEffectiveState(notify: false);
+        };
         _ipcProviders = new SoundMixerIpcProviders(Services.PluginInterface, Api);
 
         Services.ClientState.Logout += OnLogout;
+    }
+
+    internal void RebuildSoundBlacklist()
+    {
+        OfficialBlacklistSync.RebuildFromConfig(Config);
+    }
+
+    internal bool AddUserBlacklistEntry(SoundBlacklistMatchKind kind, string match, string note)
+    {
+        if (!SoundBlacklist.TryAddUserEntry(Config, kind, match, note))
+        {
+            return false;
+        }
+
+        Config.Save();
+        return true;
+    }
+
+    internal void RemoveUserBlacklistEntry(string entryId)
+    {
+        var entry = Config.UserSoundBlacklist.Find(e => e.Id == entryId);
+        if (entry == null)
+        {
+            return;
+        }
+
+        Config.UserSoundBlacklist.Remove(entry);
+        Config.Save();
     }
 
     internal void SetSavedEnabled(bool enabled, bool refreshSounds = true)
@@ -82,14 +117,14 @@ public class Plugin : IDalamudPlugin
         Config.Enabled = enabled;
         Config.Save();
 
-        if (refreshSounds && enabled)
-        {
-            Filter.RefreshAllActiveSounds();
-        }
+        // Do not RefreshAllActiveSounds on enable — probing every active node (incl. mount
+        // loops such as Guideroid) can native-crash. Hooks apply rules as the game touches sounds.
+        _ = refreshSounds;
     }
 
     internal void ApplyEffectiveHookState()
     {
+        MountTransitionGuard.Update();
         if (IsEffectivelyEnabled)
         {
             Filter.Enable();
@@ -98,6 +133,8 @@ public class Plugin : IDalamudPlugin
         {
             Filter.Disable();
         }
+
+        Filter.ApplyMountSafeHookState();
     }
 
     internal string ResolveSoundPath(string rawPath, nint scdDataPtr = 0)
@@ -108,7 +145,40 @@ public class Plugin : IDalamudPlugin
 
     private void OnLogout(int type, int code)
     {
+        SoundBlacklist.ClearPointerCache();
         Api.OnLogout();
+    }
+
+    private void MigrateSoundBlacklistEntries()
+    {
+        if (Config.Version >= 6)
+        {
+            return;
+        }
+
+        if (Config.UserSoundBlacklist.Count == 0 && Config.CustomSoundBlacklist.Count > 0)
+        {
+            foreach (var legacy in Config.CustomSoundBlacklist)
+            {
+                if (string.IsNullOrWhiteSpace(legacy))
+                {
+                    continue;
+                }
+
+                Config.UserSoundBlacklist.Add(
+                    new UserSoundBlacklistEntry
+                    {
+                        MatchKind = SoundBlacklist.InferMatchKind(legacy),
+                        Match = legacy.Trim(),
+                        Note = string.Empty,
+                    }
+                );
+            }
+        }
+
+        Config.CustomSoundBlacklist.Clear();
+        Config.Version = 6;
+        Config.Save();
     }
 
     private void MigrateVolumeAboveEngineCap()
@@ -157,7 +227,10 @@ public class Plugin : IDalamudPlugin
 
     private void OnFrameworkUpdate(IFramework framework)
     {
+        MountTransitionGuard.Update();
+        Filter.ApplyMountSafeHookState();
         Filter.EnforceTrackedVolumes();
+        SoundBlacklist.PruneInactivePointers();
     }
 
     private void ApplyDefaultConfiguration()

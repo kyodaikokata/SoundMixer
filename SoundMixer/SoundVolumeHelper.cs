@@ -121,29 +121,47 @@ internal static unsafe class SoundVolumeHelper
 
     internal static string GetPathFromSoundData(SoundData* soundData)
     {
-        if (soundData == null)
+        if (!TryGetPathFromSoundData(soundData, out var path))
         {
             return string.Empty;
+        }
+
+        return path;
+    }
+
+    /// <summary>
+    /// Reads the SCD path from SoundResourceHandle only. Does not call ISoundData.GetFileName()
+    /// (native virtual); some mount / loop sounds crash when that vfunc runs on a live node.
+    /// </summary>
+    internal static bool TryGetPathFromSoundData(SoundData* soundData, out string path)
+    {
+        path = string.Empty;
+        if (soundData == null || !SoundDataSafety.IsReadable((nint)soundData))
+        {
+            return false;
         }
 
         try
         {
             var handle = soundData->SoundResourceHandle;
-            if (handle != null)
+            if (handle == null || !SoundDataSafety.IsReadable((nint)handle, 0x40))
             {
-                var name = handle->FileName.ToString();
-                if (!string.IsNullOrWhiteSpace(name))
-                {
-                    return name.ToLowerInvariant();
-                }
+                return false;
             }
 
-            return ((ISoundData*)soundData)->GetFileName().ToString().ToLowerInvariant();
+            var name = handle->FileName.ToString();
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                return false;
+            }
+
+            path = name.ToLowerInvariant();
+            return true;
         }
         catch (Exception ex)
         {
             Services.PluginLog.Verbose(ex, "SoundMixer: failed to read path from SoundData");
-            return string.Empty;
+            return false;
         }
     }
 

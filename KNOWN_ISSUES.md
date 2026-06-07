@@ -62,7 +62,7 @@
 |------|------|
 | **发现时间** | 2026-06-06 |
 | **发现版本** | SoundMixer **0.1.0**（`0.1.0.0`）· Dalamud API **15** |
-| **状态** | 已缓解（**0.2.0** 起增加防护，需重新编译部署后生效） |
+| **状态** | **已修复**（**0.2.1.1**：`SoundDataSafety` + `VirtualQuery` 内存校验 + 统一链表遍历） |
 
 ### 现象
 
@@ -76,21 +76,87 @@ Exception in event handler "IFramework::Update"
 
 ### 原因
 
-`EnforceTrackedVolumes` 每帧扫描游戏内 `SoundData` 链表做监听；在部分时机（加载、切图、音效释放）会读到 **无效或已释放** 的 native 指针，触发访问异常。
+`EnforceTrackedVolumes` 每帧扫描游戏内 `SoundData` 链表做监听；在部分时机（加载、切图、音效释放）会读到 **无效或已释放** 的 native 指针（内存地址，非配置路径），触发访问异常。
 
-### 缓解（0.2.0 起）
+### 修复
 
-- `ScanSingleSoundForMonitoring` / 链表遍历：`try/catch`、环检测、节点上限（4096）。
-- `GetPathFromSoundData`：读取失败返回空路径。
-- `EnforceTrackedVolumes` 整体 `try/catch`，避免拖垮 `IFramework::Update`。
+- 新增 `SoundDataSafety`：`VirtualQuery` 校验可读内存后再解引用。
+- 所有 `SoundData` 链表遍历统一走 `VisitSoundList`（环检测 + 4096 节点上限 + 逐节点保护）。
+- `SoundVolumeTracker` / `GetPathFromSoundData` / 音量强制逻辑在读写前均校验指针。
+- `EnforceTrackedVolumes` 保留整体 `try/catch` 作为最后防线。
 
 ### 残留风险
 
-极端情况下仍可能漏记单条监听，不应再导致插件每帧报错。若仍有堆栈，请附带 Dalamud 日志与当时场景（副本 / 过图 / BGM 切换等）。
+极端竞态下可能漏记单条监听日志，不应再导致 `IFramework::Update` 反复报错。
 
 ---
 
-## 3. 文档与早期 MVP 文案
+## 3. 上/下坐骑时游戏崩溃
+
+| 项目 | 内容 |
+|------|------|
+| **发现时间** | 2026-06-06 |
+| **发现版本** | SoundMixer **0.2.1.1** 及更早 |
+| **状态** | **已修复**（**0.2.1.2** 起 SetVolume 安全；**0.2.2.0** 将骑乘 hook 挂起改为可选「安全模式」，**默认关闭**，骑乘期仍可混音） |
+
+### 现象
+
+上坐骑（或下坐骑）时游戏崩溃；禁用 SoundMixer 后不复现。  
+**外勤机（Guideroid）** 上：插件一旦启用（含进图已在骑乘、骑乘中点启用）即崩溃；其他坐骑可能正常。
+
+### 原因
+
+1. **0.2.1.1 及更早**：坐骑切换时大量 **带淡出参数的 SetVolume**；hook 在淡出中强制写字段、重入 `Original`，导致 native 崩溃。
+2. **0.2.1.2 仍可能触发（外勤机）**：启用后每帧 `EnforceTrackedVolumes` 遍历**全部**活跃 `SoundData` 并解析路径；部分坐骑循环音（外勤机）对 `ISoundData.GetFileName()` 或启用时 `RefreshAllActiveSounds` 全表扫描敏感，引发 **native 访问冲突**（与 fade 是否可见无关）。
+
+### 修复
+
+**0.2.1.2**
+
+- `SetVolume` / `GetVolume` detour：无效指针直接返回；`fadeDuration > 0` 时不 `ApplyFieldVolume`；刷新路径不再重入 `SetVolume Original`。
+
+**0.2.1.3**
+
+- 路径解析仅读 `SoundResourceHandle`，**不再**调用 `GetFileName()` 虚函数。
+- 每帧 enforcement **仅**处理已在 `Tracked` 中的音效（经 hook 登记过的），不扫描未知活跃节点。
+- enforcement 在检测到 native fade 进行中（`fadeTarget ≠ volume`）时跳过写字段。
+- 启用插件时**不再**自动 `RefreshAllActiveSounds`（避免启用瞬间全表探测）。
+
+**0.2.1.4**
+
+- `ConditionFlag.Mounted` / `Mounting` 等激活时，**SetVolume / GetVolume / 播放 hook 全部透传**（不缩放、不写字段、不 enforcement）。
+- 上下马后保留约 3 秒 grace，覆盖脚步淡出等尾波 `SetVolume`。
+- 过渡中的 `SoundData` 若安全校验失败，仍 **调用 Original**，不再静默跳过（旧逻辑会破坏上马瞬间音频状态）。
+
+**0.2.1.5**
+
+- 坐骑过渡期间 **物理 Disable** `SetVolume` / `GetVolume` vtable hook（游戏直接走原生，不经 detour）。
+- 坐骑音效路径（`/mount/`、`se_bt_etc_mount`、`guideroid` 等）播放时 **提前** 进入 guard（早于 `Mounted` 条件旗标）。
+- grace 延长至 5 秒；`Framework.Update` 每帧同步 guard 与 hook 状态，HeelsDesignLinker 等 IPC 重载 hook 时仍遵守 guard。
+
+**0.2.1.6**
+
+- 骑乘期间 **挂起全部 hook**（`PlaySpecific`、播放、资源、`SetVolume`/`GetVolume`），不仅 vtable。
+- `RefreshGroupSounds` 在 guard 激活时 **直接跳过**（不再遍历活跃/非活跃 `SoundData` 链表）；修复 HeelsDesignLinker 上马时 IPC 狂刷脚步声分组导致扫描外勤机循环音。
+- `ApplyEffectiveHookState` / `Enable()` 前先 `MountTransitionGuard.Update()`，骑乘中点启用或 IPC 重载时立即挂起。
+
+**0.2.1.7**
+
+- 音效黑名单初版（已并入 0.2.1.8 独立 Tab 设计）。
+
+**0.2.1.8**
+
+- **黑名单**独立标签页：**我的黑名单**（可编辑，关键词/路径/Glob + 备注）与 **官方黑名单**（只读，Git 同步）分开展示。
+- 运行时两套规则均生效，但数据与 UI 不合并；官方条目玩家不可改。
+
+**0.2.2.0**
+
+- 骑乘 hook 挂起改为可选 **安全模式**（默认**关闭**；工具栏位于专家模式之后）。关闭时骑乘期仍应用音量规则。
+- 若在外勤机等坐骑上仍崩溃：开启安全模式，和/或依赖官方黑名单（`se_bt_etc_mount_guideroid` 等）。
+
+---
+
+## 4. 文档与早期 MVP 文案
 
 `DESIGN.md` 中部分早期设计草案（如 FMOD 缓冲修改、500% 上限）**未反映当前实现**。以本文档、游戏内「更新日志」、`SoundMixer.json` / Catalog manifest 为准。
 
@@ -100,5 +166,14 @@ Exception in event handler "IFramework::Update"
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-08 | 0.2.2.0 | 安全模式（骑乘 hook 可选）；默认骑乘期仍混音 |
+| 2026-06-08 | 0.2.1.8 | 黑名单独立 Tab；用户/官方分表；匹配类型+备注 |
+| 2026-06-08 | 0.2.1.7 | 音效黑名单初版 |
+| 2026-06-08 | 0.2.1.6 | 骑乘挂起全部 hook；跳过 RefreshGroupSounds；IPC 前同步 guard |
+| 2026-06-08 | 0.2.1.5 | 坐骑过渡物理卸载 vtable hook；坐骑音效提前 guard；5s grace |
+| 2026-06-08 | 0.2.1.4 | 坐骑/过渡透传 hook；SetVolume 过渡节点不再跳过 Original |
+| 2026-06-08 | 0.2.1.3 | 外勤机坐骑：跳过 GetFileName、仅 tracked enforcement、启用时不全表刷新 |
+| 2026-06-06 | 0.2.1.2 | 修复上/下坐骑 SetVolume hook 崩溃 |
+| 2026-06-06 | 0.2.1.1 | 修复 native 指针扫描崩溃（SoundDataSafety + VirtualQuery） |
 | 2026-06-06 | 0.2.0.0 | 监听/hook 缓解说明对齐 0.2.0；补充文档引用 |
 | 2026-06-06 | 0.1.0 | 初版：记录 SoundManager 签名未匹配、监听扫描崩溃及缓解措施 |

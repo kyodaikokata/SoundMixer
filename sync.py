@@ -1,17 +1,25 @@
 #!/usr/bin/env python3
-"""Sync plugin source from WorkInProgress into this git repo."""
+"""Sync plugin source from WorkInProgress into this git repo.
+
+Prefer the release pipeline:
+  WorkInProgress/<Plugin>/scripts/publish-release.ps1
+which calls KKT-Catalog/scripts/sync-source-repo.ps1 after catalog publish.
+
+Manual usage (from repo root):
+  python sync.py
+  python sync.py --src E:/work/DalamudProject/WorkInProgress/SoundMixer
+"""
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
-SRC = Path(r"E:\work\DalamudProject\WorkInProgress\SoundMixer")
-DST = Path(__file__).resolve().parent
-
-SKIP_NAMES = {"SoundSetter.csproj", "SoundSetter.json"}
-SKIP_DIRS = {"bin", "obj"}
+DEFAULT_SRC = Path(r"E:\work\DalamudProject\WorkInProgress\SoundMixer")
+SKIP_NAMES = {"SoundSetter.csproj", "SoundSetter.json", ".sync-complete"}
+SKIP_DIRS = {"bin", "obj", "dist", ".vs", ".idea"}
 
 
 def copy_tree(src: Path, dst: Path) -> int:
@@ -36,31 +44,48 @@ def copy_tree(src: Path, dst: Path) -> int:
 
 
 def main() -> None:
-    copied = 0
-    copied += copy_tree(SRC / "SoundMixer", DST / "SoundMixer")
-    copied += copy_tree(SRC / "images", DST / "images")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--src", type=Path, default=DEFAULT_SRC)
+    parser.add_argument("--dst", type=Path, default=Path(__file__).resolve().parent)
+    args = parser.parse_args()
 
-    for name in ("SoundMixer.sln", "pluginmaster.cn.json", "pluginmaster.global.json"):
-        src_file = SRC / name
+    src: Path = args.src
+    dst: Path = args.dst
+
+    copied = 0
+    copied += copy_tree(src / "SoundMixer", dst / "SoundMixer")
+    copied += copy_tree(src / "images", dst / "images")
+    if (src / "scripts").exists():
+        copied += copy_tree(src / "scripts", dst / "scripts")
+
+    for name in (
+        "SoundMixer.sln",
+        "README.md",
+        "KNOWN_ISSUES.md",
+        "DESIGN.md",
+        "LICENSE",
+        ".gitignore",
+        ".gitattributes",
+        "pluginmaster.cn.json",
+        "pluginmaster.global.json",
+    ):
+        src_file = src / name
         if src_file.exists():
-            shutil.copy2(src_file, DST / name)
+            shutil.copy2(src_file, dst / name)
             copied += 1
 
     marker = {
         "syncedAt": datetime.now(timezone.utc).isoformat(),
-        "source": str(SRC),
+        "source": str(src),
         "filesCopied": copied,
-        "projectCsprojExists": (DST / "SoundMixer" / "SoundMixer.csproj").exists(),
+        "projectCsprojExists": (dst / "SoundMixer" / "SoundMixer.csproj").exists(),
     }
-    (DST / ".sync-complete").write_text(
-        json.dumps(marker, indent=2), encoding="utf-8"
-    )
+    (dst / ".sync-complete").write_text(json.dumps(marker, indent=2), encoding="utf-8")
 
     required = [
-        DST / "SoundMixer" / "Filter.cs",
-        DST / "SoundMixer" / "PluginUI.cs",
-        DST / "SoundMixer" / "Configuration.cs",
-        DST / "images" / "SoundMixer" / "icon.png",
+        dst / "SoundMixer" / "SoundMixer.csproj",
+        dst / "SoundMixer" / "OfficialBlacklistSync.cs",
+        dst / "images" / "SoundMixer" / "icon.png",
     ]
     print(f"Sync complete: {copied} files")
     for path in required:

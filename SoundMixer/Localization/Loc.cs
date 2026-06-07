@@ -11,6 +11,7 @@ internal static class Loc
 
         internal const string TabMain = "Tab.Main";
         internal const string TabChangelog = "Tab.Changelog";
+        internal const string TabBlacklist = "Tab.Blacklist";
 
         internal const string LangLabel = "Lang.Label";
         internal const string LangSystem = "Lang.System";
@@ -28,6 +29,8 @@ internal static class Loc
         internal const string BtnRefreshAllTip = "Btn.RefreshAll.Tip";
         internal const string ExpertMode = "ExpertMode";
         internal const string ExpertModeTip = "ExpertMode.Tip";
+        internal const string SafeMode = "SafeMode";
+        internal const string SafeModeTip = "SafeMode.Tip";
         internal const string Monitoring = "Monitoring";
         internal const string MonitoringTip = "Monitoring.Tip";
         internal const string TrackedScd = "TrackedScd";
@@ -45,6 +48,38 @@ internal static class Loc
         internal const string MonitorHint = "Monitor.Hint";
         internal const string MonitorEmpty = "Monitor.Empty";
         internal const string MonitorPlayingTag = "Monitor.PlayingTag";
+
+        internal const string BlacklistTabHint = "Blacklist.TabHint";
+        internal const string BlacklistUserSection = "Blacklist.UserSection";
+        internal const string BlacklistUserHint = "Blacklist.UserHint";
+        internal const string BlacklistUserCount = "Blacklist.UserCount";
+        internal const string BlacklistUserEmpty = "Blacklist.UserEmpty";
+        internal const string BlacklistOfficialSection = "Blacklist.OfficialSection";
+        internal const string BlacklistOfficialHint = "Blacklist.OfficialHint";
+        internal const string BlacklistOfficialMeta = "Blacklist.OfficialMeta";
+        internal const string BlacklistOfficialEmpty = "Blacklist.OfficialEmpty";
+        internal const string BlacklistMatchKind = "Blacklist.MatchKind";
+        internal const string BlacklistMatchLabel = "Blacklist.MatchLabel";
+        internal const string BlacklistMatchTip = "Blacklist.MatchTip";
+        internal const string BlacklistNoteLabel = "Blacklist.NoteLabel";
+        internal const string BlacklistAddEntry = "Blacklist.AddEntry";
+        internal const string BlacklistDeleteEntry = "Blacklist.DeleteEntry";
+        internal const string BlacklistKindKeyword = "Blacklist.Kind.Keyword";
+        internal const string BlacklistKindPath = "Blacklist.Kind.Path";
+        internal const string BlacklistKindGlob = "Blacklist.Kind.Glob";
+        internal const string BlacklistRefreshOfficial = "Blacklist.RefreshOfficial";
+        internal const string BlacklistRefreshOfficialFetching = "Blacklist.RefreshOfficial.Fetching";
+        internal const string BlacklistRefreshOfficialCooldown = "Blacklist.RefreshOfficial.Cooldown";
+        internal const string BlacklistRefreshOfficialTip = "Blacklist.RefreshOfficial.Tip";
+        internal const string BlacklistCtxAddPath = "Blacklist.Ctx.AddPath";
+        internal const string BlacklistCtxAddGlob = "Blacklist.Ctx.AddGlob";
+        internal const string MsgBlacklistAdded = "Msg.Blacklist.Added";
+        internal const string MsgBlacklistAddedUser = "Msg.Blacklist.AddedUser";
+        internal const string MsgBlacklistRemoved = "Msg.Blacklist.Removed";
+        internal const string MsgBlacklistSynced = "Msg.Blacklist.Synced";
+        internal const string MsgBlacklistFetchUpdated = "Msg.Blacklist.FetchUpdated";
+        internal const string MsgBlacklistFetchUpToDate = "Msg.Blacklist.FetchUpToDate";
+        internal const string MsgBlacklistFetchFailed = "Msg.Blacklist.FetchFailed";
 
         internal const string IpcOverridesTitle = "IpcOverrides.Title";
         internal const string IpcOverridesTitleCount = "IpcOverrides.TitleCount";

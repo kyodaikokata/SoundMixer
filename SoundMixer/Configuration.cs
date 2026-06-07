@@ -9,10 +9,16 @@ namespace SoundMixer;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 4;
+    public int Version { get; set; } = 6;
 
     public bool Enabled { get; set; } = true;
     public bool ExpertMode { get; set; } = false;
+
+    /// <summary>
+    /// When enabled, suspend audio hooks while mounted / during mount transitions (legacy 0.2.1.6 guard).
+    /// </summary>
+    public bool SafeMode { get; set; } = false;
+
     public bool EnableMonitoring { get; set; } = true;
     public const int MonitoringHistorySize = 100;
     public const int MonitoringDisplayCount = 20;
@@ -35,6 +41,15 @@ public class Configuration : IPluginConfiguration
     public Dictionary<string, string> SoundToGroup { get; set; } = new();
     public Dictionary<string, float> IndividualVolumes { get; set; } = new();
     public Dictionary<string, string> PathAliases { get; set; } = new();
+
+    /// <summary>Player-managed blacklist entries (editable in the Blacklist tab).</summary>
+    public List<UserSoundBlacklistEntry> UserSoundBlacklist { get; set; } = new();
+
+    /// <summary>Legacy one-line rules migrated into <see cref="UserSoundBlacklist"/>.</summary>
+    public List<string> CustomSoundBlacklist { get; set; } = new();
+
+    /// <summary>Last synced revision from OfficialSoundBlacklist.json on GitHub.</summary>
+    public int OfficialBlacklistRevision { get; set; }
 
     [NonSerialized]
     private Dictionary<string, Glob>? _cachedGlobs;

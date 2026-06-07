@@ -170,6 +170,10 @@ internal unsafe class Filter : IDisposable
     internal bool GetVolumeHookActive => GetVolumeHook != null;
 
     private bool SoundDataHooksInstalled { get; set; }
+    private bool HooksSuppressedForMount { get; set; }
+
+    [ThreadStatic]
+    private static int s_setVolumeDetourDepth;
 
     private readonly ConcurrentDictionary<nint, string> KnownActiveMonitoredSounds = new();
     private DateTime _lastActiveScanUtc;
@@ -259,6 +263,7 @@ internal unsafe class Filter : IDisposable
 
     internal void Enable()
     {
+        MountTransitionGuard.Update();
         var unavailableHooks = new List<string>();
 
         if (
@@ -337,8 +342,7 @@ internal unsafe class Filter : IDisposable
         GetResourceSyncHook?.Enable();
         GetResourceAsyncHook?.Enable();
         TryInstallSetVolumeHook();
-        SetVolumeHook?.Enable();
-        GetVolumeHook?.Enable();
+        ApplyMountSafeHookState();
 
         Services.PluginLog.Info(
             $"SoundMixer: hooks enabled (PlaySpecific={PlaySpecificSoundHook != null}, "
@@ -349,10 +353,85 @@ internal unsafe class Filter : IDisposable
         );
     }
 
+    private bool ShouldBypassVolumeInterception()
+    {
+        return !Plugin.IsEffectivelyEnabled || MountTransitionGuard.IsEngaged(Plugin.Config.SafeMode);
+    }
+
+    private static bool ShouldBypassPath(string? path)
+    {
+        return SoundBlacklist.IsPathBlocked(path);
+    }
+
+    private static bool ShouldBypassSoundData(SoundData* soundData)
+    {
+        return SoundBlacklist.ShouldBypassSoundData(soundData);
+    }
+
+    internal void ApplyMountSafeHookState()
+    {
+        var shouldSuppress = MountTransitionGuard.IsEngaged(Plugin.Config.SafeMode)
+            && Plugin.IsEffectivelyEnabled;
+        if (shouldSuppress == HooksSuppressedForMount)
+        {
+            return;
+        }
+
+        HooksSuppressedForMount = shouldSuppress;
+        if (shouldSuppress)
+        {
+            SuspendAllHooksRuntime();
+            Services.PluginLog.Info("SoundMixer: all audio hooks suspended for mount transition");
+        }
+        else if (Plugin.IsEffectivelyEnabled)
+        {
+            ResumeAllHooksRuntime();
+            Services.PluginLog.Info("SoundMixer: audio hooks resumed after mount transition");
+        }
+    }
+
+    private void SuspendAllHooksRuntime()
+    {
+        PlaySpecificSoundHook?.Disable();
+        PlaySoundHook?.Disable();
+        PlaySystemSoundHook?.Disable();
+        PlayClipSoundHook?.Disable();
+        PlayMovieSoundHook?.Disable();
+        PlayBGMSoundHook?.Disable();
+        PlayWeatherSoundHook?.Disable();
+        SetVolumeHook?.Disable();
+        GetVolumeHook?.Disable();
+        LoadSoundFileHook?.Disable();
+        GetResourceSyncHook?.Disable();
+        GetResourceAsyncHook?.Disable();
+    }
+
+    private void ResumeAllHooksRuntime()
+    {
+        PlaySpecificSoundHook?.Enable();
+        PlaySoundHook?.Enable();
+        PlaySystemSoundHook?.Enable();
+        PlayClipSoundHook?.Enable();
+        PlayMovieSoundHook?.Enable();
+        PlayBGMSoundHook?.Enable();
+        PlayWeatherSoundHook?.Enable();
+        LoadSoundFileHook?.Enable();
+        GetResourceSyncHook?.Enable();
+        GetResourceAsyncHook?.Enable();
+        TryInstallSetVolumeHook();
+        SetVolumeHook?.Enable();
+        GetVolumeHook?.Enable();
+    }
+
     internal void EnforceTrackedVolumes()
     {
         try
         {
+            if (MountTransitionGuard.IsEngaged(Plugin.Config.SafeMode))
+            {
+                return;
+            }
+
             var soundManager = SoundManager.Instance();
             if (soundManager == null)
             {
@@ -387,19 +466,25 @@ internal unsafe class Filter : IDisposable
 
     private void EnforceTrackedVolumesInList(SoundData* listHead)
     {
-        for (
-            ISoundData* node = (ISoundData*)listHead;
-            node != null;
-            node = node->Next
-        )
-        {
-            SoundVolumeTracker.EnforceActiveSound((SoundData*)node, Plugin.VolumeCalculator);
-        }
+        SoundDataSafety.VisitSoundList(
+            listHead,
+            soundData =>
+            {
+                if (ShouldBypassSoundData(soundData))
+                {
+                    return true;
+                }
+
+                SoundVolumeTracker.EnforceActiveSound(soundData, Plugin.VolumeCalculator);
+                return true;
+            },
+            listName: "active-enforce"
+        );
     }
 
     internal int RefreshAllActiveSounds()
     {
-        if (!Plugin.IsEffectivelyEnabled)
+        if (!Plugin.IsEffectivelyEnabled || MountTransitionGuard.IsEngaged(Plugin.Config.SafeMode))
         {
             return 0;
         }
@@ -418,6 +503,7 @@ internal unsafe class Filter : IDisposable
         refreshed += RefreshSoundsInList(soundManager->InactiveSoundDataListHead);
 
         if (soundManager->WeatherSoundData != null
+            && SoundDataSafety.IsReadable((nint)soundManager->WeatherSoundData)
             && SoundVolumeTracker.ForceRefreshActiveSound(
                 soundManager->WeatherSoundData,
                 Plugin.VolumeCalculator,
@@ -438,6 +524,14 @@ internal unsafe class Filter : IDisposable
             return 0;
         }
 
+        if (MountTransitionGuard.IsEngaged(Plugin.Config.SafeMode))
+        {
+            Services.PluginLog.Debug(
+                $"SoundMixer: skipped RefreshGroupSounds({groupId}) during mount transition"
+            );
+            return 0;
+        }
+
         Plugin.VolumeCalculator.ClearCache();
         TryInstallSetVolumeHook();
 
@@ -452,6 +546,7 @@ internal unsafe class Filter : IDisposable
         refreshed += RefreshGroupSoundsInList(soundManager->InactiveSoundDataListHead, groupId);
 
         if (soundManager->WeatherSoundData != null
+            && SoundDataSafety.IsReadable((nint)soundManager->WeatherSoundData)
             && SoundBelongsToGroup(soundManager->WeatherSoundData, groupId)
             && SoundVolumeTracker.ForceRefreshActiveSound(
                 soundManager->WeatherSoundData,
@@ -470,21 +565,23 @@ internal unsafe class Filter : IDisposable
     {
         var refreshed = 0;
 
-        for (
-            ISoundData* node = (ISoundData*)listHead;
-            node != null;
-            node = node->Next
-        )
-        {
-            if (SoundVolumeTracker.ForceRefreshActiveSound(
-                    (SoundData*)node,
-                    Plugin.VolumeCalculator,
-                    ApplyRefreshedVolume
-                ))
+        SoundDataSafety.VisitSoundList(
+            listHead,
+            soundData =>
             {
-                refreshed++;
-            }
-        }
+                if (SoundVolumeTracker.ForceRefreshActiveSound(
+                        soundData,
+                        Plugin.VolumeCalculator,
+                        ApplyRefreshedVolume
+                    ))
+                {
+                    refreshed++;
+                }
+
+                return true;
+            },
+            listName: "refresh"
+        );
 
         return refreshed;
     }
@@ -493,34 +590,45 @@ internal unsafe class Filter : IDisposable
     {
         var refreshed = 0;
 
-        for (
-            ISoundData* node = (ISoundData*)listHead;
-            node != null;
-            node = node->Next
-        )
-        {
-            var soundData = (SoundData*)node;
-            if (!SoundBelongsToGroup(soundData, groupId))
+        SoundDataSafety.VisitSoundList(
+            listHead,
+            soundData =>
             {
-                continue;
-            }
+                if (!SoundBelongsToGroup(soundData, groupId))
+                {
+                    return true;
+                }
 
-            if (SoundVolumeTracker.ForceRefreshActiveSound(
-                    soundData,
-                    Plugin.VolumeCalculator,
-                    ApplyRefreshedVolume
-                ))
-            {
-                refreshed++;
-            }
-        }
+                if (SoundVolumeTracker.ForceRefreshActiveSound(
+                        soundData,
+                        Plugin.VolumeCalculator,
+                        ApplyRefreshedVolume
+                    ))
+                {
+                    refreshed++;
+                }
+
+                return true;
+            },
+            listName: "refresh-group"
+        );
 
         return refreshed;
     }
 
     private bool SoundBelongsToGroup(SoundData* soundData, string groupId)
     {
-        if (soundData == null || !soundData->IsActive)
+        if (ShouldBypassSoundData(soundData))
+        {
+            return false;
+        }
+
+        if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out var soundNumber, out _))
+        {
+            return false;
+        }
+
+        if (!isActive)
         {
             return false;
         }
@@ -532,18 +640,13 @@ internal unsafe class Filter : IDisposable
         }
 
         var resolvedPath = Plugin.ResolveSoundPath(path);
-        var specificPath = PathResolver.BuildSpecificPath(resolvedPath, (int)soundData->SoundNumber);
+        var specificPath = PathResolver.BuildSpecificPath(resolvedPath, (int)soundNumber);
         return Plugin.VolumeCalculator.SoundBelongsToGroupTree(specificPath, groupId)
                || Plugin.VolumeCalculator.SoundBelongsToGroupTree(resolvedPath, groupId);
     }
 
     private void ApplyRefreshedVolume(SoundData* soundData, float effectiveVolume)
     {
-        if (SoundDataHooksInstalled && SetVolumeHook != null)
-        {
-            SetVolumeHook.Original(soundData, effectiveVolume, 0);
-        }
-
         SoundVolumeTracker.ApplyFieldVolume(soundData, effectiveVolume);
     }
 
@@ -562,6 +665,7 @@ internal unsafe class Filter : IDisposable
         GetResourceSyncHook?.Disable();
         GetResourceAsyncHook?.Disable();
         SoundVolumeTracker.Clear();
+        HooksSuppressedForMount = false;
         Services.PluginLog.Info("SoundMixer: Filter hooks disabled");
     }
 
@@ -614,8 +718,7 @@ internal unsafe class Filter : IDisposable
     {
         if (SoundDataHooksInstalled)
         {
-            SetVolumeHook?.Enable();
-            GetVolumeHook?.Enable();
+            ApplyMountSafeHookState();
             return;
         }
 
@@ -654,7 +757,6 @@ internal unsafe class Filter : IDisposable
             setVolumeAddr,
             SetVolumeDetour
         );
-        SetVolumeHook.Enable();
 
         if (getVolumeAddr != nint.Zero)
         {
@@ -662,7 +764,6 @@ internal unsafe class Filter : IDisposable
                 getVolumeAddr,
                 GetVolumeDetour
             );
-            GetVolumeHook.Enable();
         }
         else
         {
@@ -673,12 +774,49 @@ internal unsafe class Filter : IDisposable
         Services.PluginLog.Info(
             $"SoundMixer: SoundData hooks at GetVolume={getVolumeAddr:X}, SetVolume={setVolumeAddr:X}"
         );
+        ApplyMountSafeHookState();
+    }
+
+    private void PassthroughSetVolume(SoundData* self, float volume, uint fadeDuration)
+    {
+        try
+        {
+            SetVolumeHook!.Original(self, volume, fadeDuration);
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Verbose(ex, "SoundMixer: SetVolume passthrough failed");
+        }
     }
 
     private void SetVolumeDetour(SoundData* self, float volume, uint fadeDuration)
     {
-        if (Plugin.IsEffectivelyEnabled)
+        if (self == null)
         {
+            return;
+        }
+
+        if (ShouldBypassVolumeInterception() || ShouldBypassSoundData(self))
+        {
+            PassthroughSetVolume(self, volume, fadeDuration);
+            return;
+        }
+
+        if (!SoundDataSafety.IsValidForHook(self))
+        {
+            PassthroughSetVolume(self, volume, fadeDuration);
+            return;
+        }
+
+        s_setVolumeDetourDepth++;
+        try
+        {
+            if (s_setVolumeDetourDepth > 1)
+            {
+                PassthroughSetVolume(self, volume, fadeDuration);
+                return;
+            }
+
             try
             {
                 var gameVolume = volume;
@@ -698,33 +836,72 @@ internal unsafe class Filter : IDisposable
             {
                 Services.PluginLog.Error(ex, "Error in SetVolumeDetour");
             }
+
+            if (!SoundDataSafety.IsValidForHook(self))
+            {
+                PassthroughSetVolume(self, volume, fadeDuration);
+                return;
+            }
+
+            PassthroughSetVolume(self, volume, fadeDuration);
+
+            if (fadeDuration == 0 && SoundDataSafety.IsValidForVolumeWrite(self))
+            {
+                try
+                {
+                    SoundVolumeTracker.ApplyFieldVolume(self, volume);
+                }
+                catch (Exception ex)
+                {
+                    Services.PluginLog.Error(ex, "Error forcing SoundData.Volume after SetVolume");
+                }
+            }
         }
-
-        SetVolumeHook!.Original(self, volume, fadeDuration);
-
-        if (Plugin.IsEffectivelyEnabled)
+        finally
         {
-            try
-            {
-                SoundVolumeTracker.ApplyFieldVolume(self, volume);
-            }
-            catch (Exception ex)
-            {
-                Services.PluginLog.Error(ex, "Error forcing SoundData.Volume after SetVolume");
-            }
+            s_setVolumeDetourDepth--;
+        }
+    }
+
+    private float PassthroughGetVolume(SoundData* self)
+    {
+        try
+        {
+            return GetVolumeHook!.Original(self);
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Verbose(ex, "SoundMixer: GetVolume passthrough failed");
+            return 1.0f;
         }
     }
 
     private float GetVolumeDetour(SoundData* self)
     {
-        var rawVolume = GetVolumeHook!.Original(self);
-        if (!Plugin.IsEffectivelyEnabled)
+        if (self == null)
         {
-            return rawVolume;
+            return 1.0f;
         }
+
+        if (ShouldBypassVolumeInterception() || ShouldBypassSoundData(self))
+        {
+            return PassthroughGetVolume(self);
+        }
+
+        if (!SoundDataSafety.IsValidForHook(self))
+        {
+            return PassthroughGetVolume(self);
+        }
+
+        var rawVolume = PassthroughGetVolume(self);
 
         try
         {
+            if (!SoundDataSafety.IsValidForHook(self))
+            {
+                return rawVolume;
+            }
+
             var multiplier = SoundVolumeTracker.GetMultiplier(self, Plugin.VolumeCalculator);
             return SoundVolumeTracker.GetEffectiveVolume(self, rawVolume, multiplier);
         }
@@ -737,12 +914,21 @@ internal unsafe class Filter : IDisposable
 
     private void* PlaySpecificSoundDetour(long a1, int idx)
     {
+        if (ShouldBypassVolumeInterception())
+        {
+            return PlaySpecificSoundHook!.Original(a1, idx);
+        }
+
         var multiplier = 1.0f;
         var path = string.Empty;
 
         try
         {
             multiplier = PlaySpecificSoundDetourInner(a1, idx, out path);
+            if (ShouldBypassPath(path))
+            {
+                return PlaySpecificSoundHook!.Original(a1, idx);
+            }
             if (Plugin.IsEffectivelyEnabled)
             {
                 SoundVolumeHelper.BeginPlay(path, (uint)idx, multiplier);
@@ -799,38 +985,52 @@ internal unsafe class Filter : IDisposable
     )
     {
         SoundData* fallbackMatch = null;
+        var found = false;
 
-        for (
-            ISoundData* node = (ISoundData*)listHead;
-            node != null;
-            node = node->Next
-        )
-        {
-            var current = (SoundData*)node;
-            var dataPath = SoundVolumeHelper.GetPathFromSoundData(current);
-
-            if (!string.IsNullOrWhiteSpace(path))
+        SoundDataSafety.VisitSoundList(
+            listHead,
+            current =>
             {
-                if (string.IsNullOrWhiteSpace(dataPath) || !PathsMatch(path, dataPath))
+                if (!SoundDataSafety.TryReadSoundData(current, out _, out var soundNumber, out _))
                 {
-                    continue;
-                }
-
-                if (current->SoundNumber == scdSoundIndex)
-                {
-                    ApplyMultiplierToSoundData(current, multiplier);
                     return true;
                 }
 
-                fallbackMatch = current;
-                continue;
-            }
+                var dataPath = SoundVolumeHelper.GetPathFromSoundData(current);
 
-            if (current->SoundNumber == scdSoundIndex)
-            {
-                ApplyMultiplierToSoundData(current, multiplier);
+                if (!string.IsNullOrWhiteSpace(path))
+                {
+                    if (string.IsNullOrWhiteSpace(dataPath) || !PathsMatch(path, dataPath))
+                    {
+                        return true;
+                    }
+
+                    if (soundNumber == scdSoundIndex)
+                    {
+                        ApplyMultiplierToSoundData(current, multiplier);
+                        found = true;
+                        return false;
+                    }
+
+                    fallbackMatch = current;
+                    return true;
+                }
+
+                if (soundNumber == scdSoundIndex)
+                {
+                    ApplyMultiplierToSoundData(current, multiplier);
+                    found = true;
+                    return false;
+                }
+
                 return true;
-            }
+            },
+            listName: "apply-volume"
+        );
+
+        if (found)
+        {
+            return true;
         }
 
         if (fallbackMatch != null)
@@ -844,7 +1044,16 @@ internal unsafe class Filter : IDisposable
 
     private void ApplyMultiplierToSoundData(SoundData* soundData, float multiplier)
     {
-        var gameVolume = soundData->Volume;
+        if (ShouldBypassVolumeInterception() || ShouldBypassSoundData(soundData))
+        {
+            return;
+        }
+
+        if (!SoundDataSafety.TryReadSoundData(soundData, out _, out _, out var gameVolume))
+        {
+            return;
+        }
+
         var effectiveVolume = Configuration.ClampToEngineCap(
             SoundVolumeHelper.ScaleVolume(gameVolume, multiplier)
         );
@@ -854,11 +1063,6 @@ internal unsafe class Filter : IDisposable
             gameVolume,
             effectiveVolume
         );
-
-        if (SoundDataHooksInstalled)
-        {
-            SetVolumeHook!.Original(soundData, effectiveVolume, 0);
-        }
 
         SoundVolumeTracker.ApplyFieldVolume(soundData, effectiveVolume);
     }
@@ -875,13 +1079,23 @@ internal unsafe class Filter : IDisposable
     private float PlaySpecificSoundDetourInner(long a1, int idx, out string path)
     {
         path = string.Empty;
-        if (a1 == 0)
+        if (a1 == 0 || !SoundDataSafety.IsReadable((nint)a1, IntPtr.Size * 2))
         {
             return 1.0f;
         }
 
-        var scdData = *(byte**)(a1 + 8);
-        if (scdData == null)
+        byte* scdData;
+        try
+        {
+            scdData = *(byte**)(a1 + 8);
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Verbose(ex, "SoundMixer: failed to read SCD pointer in PlaySpecificSound");
+            return 1.0f;
+        }
+
+        if (scdData == null || !SoundDataSafety.IsReadablePointer((nint)scdData))
         {
             return 1.0f;
         }
@@ -897,6 +1111,12 @@ internal unsafe class Filter : IDisposable
         }
 
         path = Plugin.ResolveSoundPath(path, scdPtr);
+        if (ShouldBypassPath(path))
+        {
+            return 1.0f;
+        }
+
+        MountTransitionGuard.NotifyMountSound(path, Plugin.Config.SafeMode);
         var specificPath = PathResolver.BuildSpecificPath(path, idx);
         var multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
 
@@ -1048,6 +1268,12 @@ internal unsafe class Filter : IDisposable
             if (path != null)
             {
                 normalizedPath = Plugin.ResolveSoundPath(SoundVolumeHelper.NormalizePath(path));
+                if (ShouldBypassPath(normalizedPath))
+                {
+                    return PlayBGMSoundHook!.Original(self, path);
+                }
+
+                MountTransitionGuard.NotifyMountSound(normalizedPath, Plugin.Config.SafeMode);
                 multiplier = ResolveScdPathMultiplier(normalizedPath);
 
                 if (Plugin.IsEffectivelyEnabled)
@@ -1058,6 +1284,7 @@ internal unsafe class Filter : IDisposable
 
             TryInstallSetVolumeHook();
             var result = PlayBGMSoundHook!.Original(self, path);
+            SoundBlacklist.RegisterPointerForPath(result, normalizedPath);
 
             if (
                 result != null
@@ -1071,7 +1298,13 @@ internal unsafe class Filter : IDisposable
 
             if (Plugin.Config.EnableMonitoring && !string.IsNullOrEmpty(normalizedPath))
             {
-                var soundNumber = result != null ? (int)result->SoundNumber : 0;
+                var soundNumber = 0;
+                if (result != null
+                    && SoundDataSafety.TryReadSoundData(result, out _, out var number, out _))
+                {
+                    soundNumber = (int)number;
+                }
+
                 var specificPath = PathResolver.BuildSpecificPath(normalizedPath, soundNumber);
                 EnqueueMonitoredSound(normalizedPath, soundNumber, specificPath, multiplier);
             }
@@ -1101,6 +1334,7 @@ internal unsafe class Filter : IDisposable
             if (path != null)
             {
                 normalizedPath = Plugin.ResolveSoundPath(SoundVolumeHelper.NormalizePath(path));
+                MountTransitionGuard.NotifyMountSound(normalizedPath, Plugin.Config.SafeMode);
             }
 
             PlayWeatherSoundHook!.Original(self, path, fadeDuration);
@@ -1111,7 +1345,9 @@ internal unsafe class Filter : IDisposable
             }
 
             var weatherSound = self->WeatherSoundData;
-            if (weatherSound != null && Plugin.IsEffectivelyEnabled)
+            if (weatherSound != null
+                && SoundDataSafety.IsReadable((nint)weatherSound)
+                && Plugin.IsEffectivelyEnabled)
             {
                 var multiplier = ResolveScdPathMultiplier(normalizedPath);
                 if (Math.Abs(multiplier - 1.0f) > 0.001f)
@@ -1120,12 +1356,13 @@ internal unsafe class Filter : IDisposable
                 }
             }
 
-            if (Plugin.Config.EnableMonitoring && weatherSound != null)
+            if (Plugin.Config.EnableMonitoring
+                && weatherSound != null
+                && SoundDataSafety.TryReadSoundData(weatherSound, out _, out var soundNumber, out _))
             {
-                var soundNumber = (int)weatherSound->SoundNumber;
-                var specificPath = PathResolver.BuildSpecificPath(normalizedPath, soundNumber);
+                var specificPath = PathResolver.BuildSpecificPath(normalizedPath, (int)soundNumber);
                 var multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
-                EnqueueMonitoredSound(normalizedPath, soundNumber, specificPath, multiplier);
+                EnqueueMonitoredSound(normalizedPath, (int)soundNumber, specificPath, multiplier);
             }
         }
         catch (Exception ex)
@@ -1153,6 +1390,11 @@ internal unsafe class Filter : IDisposable
         PlayOriginalWithVolumeDelegate playOriginal
     )
     {
+        if (ShouldBypassVolumeInterception())
+        {
+            return playOriginal(volume);
+        }
+
         var normalizedPath = string.Empty;
         var multiplier = 1.0f;
 
@@ -1161,6 +1403,12 @@ internal unsafe class Filter : IDisposable
             if (path != null)
             {
                 normalizedPath = Plugin.ResolveSoundPath(SoundVolumeHelper.NormalizePath(path));
+                if (ShouldBypassPath(normalizedPath))
+                {
+                    return playOriginal(volume);
+                }
+
+                MountTransitionGuard.NotifyMountSound(normalizedPath, Plugin.Config.SafeMode);
                 var specificPath = PathResolver.BuildSpecificPath(normalizedPath, (int)soundNumber);
                 multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
 
@@ -1177,6 +1425,7 @@ internal unsafe class Filter : IDisposable
 
             TryInstallSetVolumeHook();
             var result = playOriginal(volume);
+            SoundBlacklist.RegisterPointerForPath(result, normalizedPath);
 
             if (
                 result != null
@@ -1224,7 +1473,8 @@ internal unsafe class Filter : IDisposable
             var seen = new HashSet<nint>();
             ScanSoundListForMonitoring(soundManager->ActiveSoundDataListHead, seen);
 
-            if (soundManager->WeatherSoundData != null)
+            if (soundManager->WeatherSoundData != null
+                && SoundDataSafety.IsReadable((nint)soundManager->WeatherSoundData))
             {
                 ScanSingleSoundForMonitoring(soundManager->WeatherSoundData, seen);
             }
@@ -1247,15 +1497,9 @@ internal unsafe class Filter : IDisposable
     {
         foreach (var ptr in KnownActiveMonitoredSounds.Keys)
         {
-            try
-            {
-                var soundData = (SoundData*)ptr;
-                if (soundData == null || !soundData->IsActive)
-                {
-                    KnownActiveMonitoredSounds.TryRemove(ptr, out _);
-                }
-            }
-            catch
+            var soundData = (SoundData*)ptr;
+            if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out _, out _)
+                || !isActive)
             {
                 KnownActiveMonitoredSounds.TryRemove(ptr, out _);
             }
@@ -1264,40 +1508,32 @@ internal unsafe class Filter : IDisposable
 
     private void ScanSoundListForMonitoring(SoundData* listHead, HashSet<nint> seen)
     {
-        const int maxNodes = 4096;
-        var nodeCount = 0;
-        var visitedNodes = new HashSet<nint>();
-
-        for (
-            ISoundData* node = (ISoundData*)listHead;
-            node != null && nodeCount < maxNodes;
-            node = node->Next
-        )
-        {
-            var nodePtr = (nint)node;
-            if (!visitedNodes.Add(nodePtr))
+        SoundDataSafety.VisitSoundList(
+            listHead,
+            soundData =>
             {
-                Services.PluginLog.Warning("SoundMixer: cycle detected in active sound list during monitoring scan");
-                break;
-            }
-
-            nodeCount++;
-            ScanSingleSoundForMonitoring((SoundData*)node, seen);
-        }
-
-        if (nodeCount >= maxNodes)
-        {
-            Services.PluginLog.Warning(
-                $"SoundMixer: active sound monitoring scan hit node limit ({maxNodes})"
-            );
-        }
+                ScanSingleSoundForMonitoring(soundData, seen);
+                return true;
+            },
+            listName: "monitoring"
+        );
     }
 
     private void ScanSingleSoundForMonitoring(SoundData* soundData, HashSet<nint> seen)
     {
         try
         {
-            if (soundData == null || !soundData->IsActive)
+            if (ShouldBypassSoundData(soundData))
+            {
+                return;
+            }
+
+            if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out var soundNumber, out _))
+            {
+                return;
+            }
+
+            if (!isActive)
             {
                 return;
             }
@@ -1305,15 +1541,19 @@ internal unsafe class Filter : IDisposable
             var ptr = (nint)soundData;
             seen.Add(ptr);
 
-            var path = SoundVolumeHelper.GetPathFromSoundData(soundData);
-            if (string.IsNullOrWhiteSpace(path))
+            if (!SoundVolumeHelper.TryGetPathFromSoundData(soundData, out var path))
             {
                 return;
             }
 
+            if (ShouldBypassPath(path))
+            {
+                SoundBlacklist.RegisterPointer(soundData);
+                return;
+            }
+
             var resolvedPath = Plugin.ResolveSoundPath(path, ptr);
-            var soundNumber = (int)soundData->SoundNumber;
-            var specificPath = PathResolver.BuildSpecificPath(resolvedPath, soundNumber);
+            var specificPath = PathResolver.BuildSpecificPath(resolvedPath, (int)soundNumber);
             var fingerprint = $"{specificPath}#{soundNumber}";
 
             if (KnownActiveMonitoredSounds.TryGetValue(ptr, out var previous) && previous == fingerprint)
@@ -1323,7 +1563,7 @@ internal unsafe class Filter : IDisposable
 
             KnownActiveMonitoredSounds[ptr] = fingerprint;
             var multiplier = Plugin.VolumeCalculator.GetVolumeForSound(specificPath);
-            EnqueueMonitoredSound(resolvedPath, soundNumber, specificPath, multiplier, isStreaming: true);
+            EnqueueMonitoredSound(resolvedPath, (int)soundNumber, specificPath, multiplier, isStreaming: true);
         }
         catch (Exception ex)
         {
@@ -1445,10 +1685,12 @@ internal unsafe class Filter : IDisposable
             );
 
         var strPath = Util.ReadTerminatedString(path);
-        if (ret != null && strPath.EndsWith(".scd", StringComparison.OrdinalIgnoreCase))
+        if (ret != null
+            && strPath.EndsWith(".scd", StringComparison.OrdinalIgnoreCase)
+            && SoundDataSafety.IsReadablePointer((nint)ret, ResourceDataPointerOffset + IntPtr.Size))
         {
             var scdData = Marshal.ReadIntPtr((nint)ret + ResourceDataPointerOffset);
-            if (scdData != nint.Zero)
+            if (scdData != nint.Zero && SoundDataSafety.IsReadablePointer(scdData))
             {
                 Scds[scdData] = strPath;
             }
@@ -1462,12 +1704,21 @@ internal unsafe class Filter : IDisposable
         var ret = LoadSoundFileHook!.Original(resourceHandle, a2);
         try
         {
+            if (resourceHandle == 0
+                || !SoundDataSafety.IsReadablePointer(resourceHandle, ResourceDataPointerOffset + IntPtr.Size))
+            {
+                return ret;
+            }
+
             var handle = (ResourceHandle*)resourceHandle;
             var name = handle->FileName.ToString();
             if (name.EndsWith(".scd", StringComparison.OrdinalIgnoreCase))
             {
                 var dataPtr = Marshal.ReadIntPtr(resourceHandle + ResourceDataPointerOffset);
-                Scds[dataPtr] = name;
+                if (dataPtr != nint.Zero && SoundDataSafety.IsReadablePointer(dataPtr))
+                {
+                    Scds[dataPtr] = name;
+                }
             }
         }
         catch (Exception ex)

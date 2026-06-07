@@ -3,6 +3,7 @@
   "Version": 4,
   "Enabled": true,
   "ExpertMode": false,
+  "SafeMode": false,
   "EnableMonitoring": true,
   "ShowRecentSounds": true,
   "HideMatchedMonitoringLogs": false,

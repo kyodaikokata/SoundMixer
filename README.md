@@ -1,6 +1,6 @@
 # SoundMixer
 
-**Current version:** 0.2.1.0
+**Current version:** 0.2.2.0
 
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
@@ -19,6 +19,7 @@ Install and updates are distributed through the unified **KKT-Catalog** custom p
 
 | Document | Description |
 |----------|-------------|
+| [DESIGN.md](./DESIGN.md) | Architecture and module map (current implementation) |
 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | Known issues and troubleshooting |
 
 In-game changelog: **更新日志 / Changelog** tab (`/soundmixer` or `/smix`).
@@ -38,9 +39,23 @@ Per-SCD-path volume mixer for FFXIV sound effects. Match sounds by **Glob path p
 | **Presets** | Switch whole layouts (groups + volumes); create, copy, delete |
 | **Live monitor** | Recently played paths, filters, right-click → add to group / set volume / fix path |
 | **Looping audio** | BGM and weather/ambient hooks with **Refresh All** or per-group refresh |
+| **Blacklist** | User-editable rules + read-only official list (keyword / path / Glob); manual fetch from GitHub |
 | **External control** | Session-only IPC overrides from other plugins (tag + priority); cleared on logout |
 
 Volume is **linear gain**: 200% ≈ +6 dB, 350% ≈ +10.9 dB. Values above the audible cap are clamped.
+
+### Safe Mode (mount guard)
+
+By default, SoundMixer **keeps applying volume rules while mounted**.
+
+Enable **Safe Mode** (toolbar, right after **Expert Mode**) if you experience crashes on certain mounts (e.g. Guideroid):
+
+| Safe Mode | Behavior |
+|-----------|----------|
+| **Off** (default) | Hooks stay active while mounted; footsteps and other rules still apply |
+| **On** | Suspend all audio hooks during mount / dismount transitions (~5 s grace); skip active-sound list scans |
+
+The **official blacklist** (Blacklist tab) also blocks risky paths (e.g. Guideroid loop sounds) without disabling mount mixing entirely.
 
 ### Quick start
 
@@ -56,12 +71,14 @@ Volume is **linear gain**: 200% ≈ +6 dB, 350% ≈ +10.9 dB. Values above the a
 
 - Turn on **Hide matched rules** in the monitor to focus on sounds you have not configured yet
 - **Expert Mode** unlocks 200–350%; watch for `[MAX]` / `[~]` badges on sliders
+- **Safe Mode** is opt-in—only enable if mounts cause crashes; see [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
+- **Blacklist** tab: add your own rules, or **Fetch official list** (10 s cooldown) for author-maintained entries
 - Toolbar **(IPC)** means another plugin has temporary overrides active
 
-### Recent highlights (0.2.1)
+### Recent highlights (0.2.2.0)
 
-- **Resizable UI**: drag between top controls and main content, and between group tree and details
-- **Layout memory**: panel sizes, window position/size, and group-tree expand state save automatically
+- **Safe Mode**: mount hook suspension is now optional (off by default)
+- **Blacklist**: manual fetch for official list; bilingual official notes (0.2.1.9)
 - See the in-game **Changelog** tab for full history
 
 ---
@@ -79,9 +96,23 @@ Volume is **linear gain**: 200% ≈ +6 dB, 350% ≈ +10.9 dB. Values above the a
 | **预设** | 切换整套分组与音量方案；新建、复制、删除 |
 | **实时监听** | 最近播放路径、筛选、右键 → 加入分组 / 设音量 / 修正路径 |
 | **持续播放** | BGM、天气/环境音 hook；**刷新所有音效** 或按分组刷新 |
+| **黑名单** | 玩家自定义规则 + 官方只读列表（关键词 / 路径 / Glob）；可手动从 GitHub 拉取 |
 | **外部控制** | 其他插件 IPC 临时覆盖（tag + priority）；登出后清除 |
 
 音量为 **线性倍率**：200% ≈ +6 dB，350% ≈ +10.9 dB；超过听感上限会自动钳制。
+
+### 安全模式（骑乘保护）
+
+默认情况下，**骑乘时仍会应用音量规则**（脚步、分组缩放等照常生效）。
+
+若在特定坐骑（如外勤机）上遇到崩溃，可在工具栏 **专家模式** 后勾选 **安全模式**：
+
+| 安全模式 | 行为 |
+|----------|------|
+| **关闭**（默认） | 骑乘期间 hook 保持启用，音量规则正常生效 |
+| **开启** | 骑乘及上下马过渡期间挂起全部音频 hook（含约 5 秒 grace）；跳过活跃音效链表扫描 |
+
+**官方黑名单**（黑名单 Tab）会屏蔽高风险路径（如外勤机循环音），无需完全关闭骑乘期的混音能力。
 
 ### 安装
 
@@ -101,10 +132,12 @@ Volume is **linear gain**: 200% ≈ +6 dB, 350% ≈ +10.9 dB. Values above the a
 
 - 监听面板开启 **隐藏已匹配规则**，便于发现尚未配置的音效
 - **专家模式** 解锁 200–350%；滑条上的 `[MAX]` / `[~]` 为听感提示
+- **安全模式** 为可选项——仅在上/下马崩溃时开启；详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
+- **黑名单** Tab：自定义规则，或点 **拉取官方列表**（10 秒冷却）获取作者维护条目
 - 工具栏 **(IPC)** 表示有其他插件的临时覆盖生效中
 
-### 近期要点（0.2.1）
+### 近期要点（0.2.2.0）
 
-- **可拖动 UI 分区**：上方控制区 / 主内容、分组树 / 详情
-- **布局记忆**：面板尺寸、窗口位置/大小、分组树展开状态自动保存
+- **安全模式**：骑乘 hook 挂起改为可选（默认关闭）
+- **黑名单**：官方列表手动拉取；官方备注中英双语（0.2.1.9）
 - 完整历史见游戏内 **更新日志** 标签

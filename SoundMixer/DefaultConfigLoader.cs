@@ -42,6 +42,7 @@ internal static class DefaultConfigLoader
         target.IndividualVolumes = source.IndividualVolumes;
         target.PathAliases = source.PathAliases;
         target.ExpertMode = source.ExpertMode;
+        target.SafeMode = source.SafeMode;
         target.UiLanguage = source.UiLanguage;
         target.Version = source.Version;
         target.InvalidateGlobCache();

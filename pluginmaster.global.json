@@ -1,0 +1,38 @@
+[
+  {
+    "Author": "KKT",
+    "Name": "SoundMixer",
+    "InternalName": "SoundMixer",
+    "Punchline": "Advanced FFXIV Sound Effect Volume Mixer",
+    "Description": "【国际 Global 构建】Per-SCD-path volume control: groups, Glob, presets, live monitor, blacklist, BGM/ambient, IPC overrides, resizable UI. 0–350% gain; optional Safe Mode. Commands: /soundmixer, /smix",
+    "ApplicableVersion": "any",
+    "Tags": [
+      "sound",
+      "audio",
+      "volume",
+      "mixer",
+      "sfx",
+      "customization"
+    ],
+    "CategoryTags": [
+      "utility",
+      "sound"
+    ],
+    "DalamudApiLevel": 15,
+    "AssemblyVersion": "0.2.1.2",
+    "Changelog": "0.2.2.0: Safe Mode (optional mount hook guard, off by default); blacklist official fetch; bilingual official notes. See in-app changelog.",
+    "LastUpdate": "0",
+    "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
+    "DownloadLinkInstall": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-global.zip",
+    "DownloadLinkUpdate": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-global.zip",
+    "DownloadLinkTesting": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-global.zip",
+    "IconUrl": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png",
+    "AcceptsFeedback": true,
+    "FeedbackMessage": "Please include steps to reproduce and the sound path if reporting a matching issue.",
+    "LoadRequiredState": 0,
+    "LoadSync": false,
+    "CanUnloadAsync": false,
+    "LoadPriority": 0,
+    "ImageUrls": []
+  }
+]
