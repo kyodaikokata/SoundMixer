@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using SoundMixer.Localization;
 
 namespace SoundMixer;
@@ -23,20 +24,26 @@ public class UserSoundBlacklistEntry
 
 internal sealed class OfficialSoundBlacklistNoteDto
 {
+    [JsonProperty("zh")]
     internal string Zh { get; set; } = string.Empty;
 
+    [JsonProperty("en")]
     internal string En { get; set; } = string.Empty;
 }
 
 internal sealed class OfficialSoundBlacklistEntryDto
 {
+    [JsonProperty("kind")]
     internal string Kind { get; set; } = "keyword";
 
+    [JsonProperty("match")]
     internal string Match { get; set; } = string.Empty;
 
     /// <summary>Legacy single-language note; used when <see cref="Notes"/> is absent.</summary>
+    [JsonProperty("note")]
     internal string Note { get; set; } = string.Empty;
 
+    [JsonProperty("notes")]
     internal OfficialSoundBlacklistNoteDto? Notes { get; set; }
 
     internal string ResolveNote(LanguageMode languageMode)
@@ -72,15 +79,20 @@ internal sealed class OfficialSoundBlacklistEntryDto
 
 internal sealed class OfficialSoundBlacklistDto
 {
+    [JsonProperty("revision")]
     internal int Revision { get; set; }
 
+    [JsonProperty("updated")]
     internal string? Updated { get; set; }
 
+    [JsonProperty("entries")]
     internal List<OfficialSoundBlacklistEntryDto> Entries { get; set; } = new();
 
     /// <summary>Legacy flat lists; used when <see cref="Entries"/> is empty.</summary>
+    [JsonProperty("patterns")]
     internal List<string> Patterns { get; set; } = new();
 
+    [JsonProperty("keywords")]
     internal List<string> Keywords { get; set; } = new();
 }
 

@@ -4,7 +4,7 @@
     "Name": "SoundMixer",
     "InternalName": "SoundMixer",
     "Punchline": "Advanced FFXIV Sound Effect Volume Mixer",
-    "Description": "【国服 CN 构建】按 SCD 路径精细调节音效：分组与 Glob、预设、实时监听、黑名单、BGM/环境音、IPC 临时覆盖、可拖动 UI。0–200% 增益（专家模式 350%）；可选安全模式。命令：/soundmixer、/smix",
+    "Description": "【国服 CN 构建】按 SCD 路径精细调节音效：分组与 Glob、预设、实时监听、BGM/环境音、IPC 临时覆盖、可拖动 UI 布局。0–200% 线性增益（专家模式最高 350%）。命令：/soundmixer、/smix",
     "ApplicableVersion": "any",
     "Tags": [
       "sound",
@@ -20,7 +20,7 @@
     ],
     "DalamudApiLevel": 15,
     "AssemblyVersion": "0.2.1.2",
-    "Changelog": "0.2.2.0: 安全模式（骑乘 hook 可选，默认关闭）；黑名单手动拉取官方列表；官方备注双语。详见游戏内更新日志。",
+    "Changelog": "0.2.1.2: Fix mount/dismount SetVolume hook crashes. See in-app changelog.",
     "LastUpdate": "0",
     "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
     "DownloadLinkInstall": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-cn.zip",

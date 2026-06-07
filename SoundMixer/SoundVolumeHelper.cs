@@ -119,49 +119,37 @@ internal static unsafe class SoundVolumeHelper
         return Util.ReadTerminatedString(path).ToLowerInvariant();
     }
 
-    internal static string GetPathFromSoundData(SoundData* soundData)
-    {
-        if (!TryGetPathFromSoundData(soundData, out var path))
-        {
-            return string.Empty;
-        }
-
-        return path;
-    }
-
-    /// <summary>
-    /// Reads the SCD path from SoundResourceHandle only. Does not call ISoundData.GetFileName()
-    /// (native virtual); some mount / loop sounds crash when that vfunc runs on a live node.
-    /// </summary>
     internal static bool TryGetPathFromSoundData(SoundData* soundData, out string path)
     {
-        path = string.Empty;
+        path = GetPathFromSoundData(soundData);
+        return !string.IsNullOrWhiteSpace(path);
+    }
+
+    internal static string GetPathFromSoundData(SoundData* soundData)
+    {
         if (soundData == null || !SoundDataSafety.IsReadable((nint)soundData))
         {
-            return false;
+            return string.Empty;
         }
 
         try
         {
             var handle = soundData->SoundResourceHandle;
-            if (handle == null || !SoundDataSafety.IsReadable((nint)handle, 0x40))
+            if (handle != null && SoundDataSafety.IsReadable((nint)handle, 0x40))
             {
-                return false;
+                var name = handle->FileName.ToString();
+                if (!string.IsNullOrWhiteSpace(name))
+                {
+                    return name.ToLowerInvariant();
+                }
             }
 
-            var name = handle->FileName.ToString();
-            if (string.IsNullOrWhiteSpace(name))
-            {
-                return false;
-            }
-
-            path = name.ToLowerInvariant();
-            return true;
+            return ((ISoundData*)soundData)->GetFileName().ToString().ToLowerInvariant();
         }
         catch (Exception ex)
         {
             Services.PluginLog.Verbose(ex, "SoundMixer: failed to read path from SoundData");
-            return false;
+            return string.Empty;
         }
     }
 

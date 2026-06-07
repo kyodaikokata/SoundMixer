@@ -121,12 +121,7 @@ internal static unsafe class SoundVolumeTracker
 
     internal static void EnforceActiveSound(SoundData* soundData, VolumeCalculator calculator)
     {
-        if (SoundBlacklist.ShouldBypassSoundData(soundData))
-        {
-            return;
-        }
-
-        if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out _, out _))
+        if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out var soundNumber, out _))
         {
             return;
         }
@@ -136,14 +131,14 @@ internal static unsafe class SoundVolumeTracker
             return;
         }
 
-        // Only re-apply volume to sounds we already scaled via SetVolume / play hooks.
-        // Walking every active node and resolving paths (or calling native helpers) breaks
-        // on some mount loop sounds (e.g. Guideroid) when the plugin is enabled.
-        if (!Tracked.ContainsKey((nint)soundData))
+        var path = SoundVolumeHelper.GetPathFromSoundData(soundData);
+        var multiplier = SoundVolumeHelper.ResolveMultiplier(calculator, path, soundNumber);
+        if (Math.Abs(multiplier - 1.0f) < 0.001f)
         {
             return;
         }
 
+        GetMultiplier(soundData, calculator);
         TryEnforceFieldVolume(soundData, calculator);
     }
 
@@ -187,15 +182,8 @@ internal static unsafe class SoundVolumeTracker
         tracked.LastEffectiveVolume = effective;
         tracked.LastWriteByPlugin = true;
 
-        var fadeTarget = ReadFadeTarget(soundData);
-        if (Math.Abs(fadeTarget - fieldVolume) > 0.01f)
-        {
-            // Native fade in progress — do not fight the engine (mount/dismount footstep teardown).
-            return false;
-        }
-
         if (Math.Abs(fieldVolume - effective) < 0.002f
-            && Math.Abs(fadeTarget - effective) < 0.002f)
+            && Math.Abs(ReadFadeTarget(soundData) - effective) < 0.002f)
         {
             return true;
         }
@@ -230,11 +218,6 @@ internal static unsafe class SoundVolumeTracker
         ApplyVolumeDelegate? applyVolume
     )
     {
-        if (SoundBlacklist.ShouldBypassSoundData(soundData))
-        {
-            return false;
-        }
-
         if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out var soundNumber, out var fieldVolume))
         {
             return false;
