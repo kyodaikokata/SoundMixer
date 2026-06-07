@@ -1,140 +1,110 @@
 # SoundMixer
 
-**Current version:** 0.2.0.0 · Dalamud API 15
+**Current version:** 0.2.1.0
 
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
-Per-SCD-path volume control for FFXIV sound effects — custom groups, Glob patterns, presets, live monitor, IPC overrides, and BGM/ambient support.
+> Fine-tune **individual sound effects** by SCD path—not just the game's global SFX slider. Group sounds with Glob patterns, nest groups, switch presets, and watch the live monitor to catch what you hear.
+>
+> **按 SCD 路径精细调节音效**——不只是游戏里的全局 SFX 滑条。用 Glob 分组、嵌套分组与预设方案管理音量，实时监听帮你找到正在播放的声音。
 
-**Install and updates** are distributed through the unified **KKT-Catalog** custom plugin repository (not this repo). Add **one** repo URL in Dalamud → Settings → Custom Plugin Repositories:
+Install and updates are distributed through the unified **KKT-Catalog** custom plugin repository. Add **one** repo URL in Dalamud (Settings → Custom Plugin Repositories):
 
 | Launcher | URL |
 |----------|-----|
 | XIVLauncher 国服 (CN) | `https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/pluginmaster.cn.json` |
 | XIVLauncher 国际 (Global) | `https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/pluginmaster.global.json` |
 
-Download links and the in-game plugin icon are hosted in [KKT-Catalog](https://github.com/kyodaikokata/KKT-Catalog) (`plugins/SoundMixer/latest-cn.zip`, `plugins/SoundMixer/latest-global.zip`, `images/SoundMixer/icon.png`). This repository contains **source code only**.
+### Documentation
 
----
+| Document | Description |
+|----------|-------------|
+| [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | Known issues and troubleshooting |
 
-## v0.2.0 highlights
-
-- **IPC temporary overrides** for external plugins (tag + priority, cleared on logout)
-- Collapsible monitor / IPC panels (always visible); group tree shows stacked effective volume with green override labels
-- Play hooks via ClientStructs `MemberFunctionPointers`; consolidated logging when signatures mismatch
-- Live monitor scan guards; see [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
-- Release zip ships **`DotNet.Glob.dll`** alongside the plugin (4 files, no ILRepack)
-- Chinese / English UI including in-game changelog tab
-
----
-
-## Release build (maintainers)
-
-Build and publish scripts live **only** under WorkInProgress. Run from there:
-
-```powershell
-cd E:\work\DalamudProject\WorkInProgress\SoundMixer
-.\scripts\publish-release.ps1
-# CN only: .\scripts\publish-release.ps1 -SkipGlobal
-```
-
-This builds CN + Global zips into `dist/`, then publishes into [KKT-Catalog](https://github.com/kyodaikokata/KKT-Catalog) via `publish-plugin.ps1` with `-WorkInProgressRoot` pointing at the WIP folder (so `PublishHelpers.ps1` is loaded from WIP, not from this repo).
-
-A wrapper script exists at `Release/SoundMixer/scripts/publish-release.ps1` but it delegates build/publish paths to WorkInProgress.
-
-To refresh **this** source repo from WIP after edits:
-
-```powershell
-cd E:\work\DalamudProject\Release\SoundMixer
-.\sync-from-wip.ps1
-```
-
-`sync-from-wip.ps1` copies source and images only — not `scripts/`, `dist/`, or build outputs.
+In-game changelog: **更新日志 / Changelog** tab (`/soundmixer` or `/smix`).
 
 ---
 
 ## English
 
-Fine-grained FFXIV audio mixing by **SCD path**. Group sounds with **Glob** patterns, nest groups, use **presets**, and watch the **live monitor** while playing.
+Per-SCD-path volume mixer for FFXIV sound effects. Match sounds by **Glob path patterns** or explicit paths, organize them in **nested groups**, and apply **0–200% linear gain** (Expert Mode up to **350%**, audible engine cap).
 
-### Commands
+### What can you control?
 
-| Command | Action |
-|---------|--------|
-| `/soundmixer` | Toggle main window |
-| `/smix` | Alias for `/soundmixer` |
+| Area | Examples |
+|------|----------|
+| **Groups** | Nested tree, drag-and-drop order, root-group colors, stacked effective volume in the tree |
+| **Matching** | Glob patterns (`**/footstep/**`), explicit sound paths, path fixes for `unknown/…` aliases |
+| **Presets** | Switch whole layouts (groups + volumes); create, copy, delete |
+| **Live monitor** | Recently played paths, filters, right-click → add to group / set volume / fix path |
+| **Looping audio** | BGM and weather/ambient hooks with **Refresh All** or per-group refresh |
+| **External control** | Session-only IPC overrides from other plugins (tag + priority); cleared on logout |
 
-Open the window from Dalamud plugin list (gear icon) as well.
-
-### Features
-
-- **Per-path volume** — match `sound/...` paths or Glob patterns (e.g. `**/weaponskill/**`)
-- **Nested groups** — drag-and-drop ordering; root groups can have custom label colors
-- **Presets** — save and switch full layouts (groups + volumes)
-- **IPC temporary overrides** — session-only control for external plugins (tag + priority)
-- **Live monitor** — recent sounds with filters; collapsible panels; optional hide matched / keyword hide
-- **BGM & weather/ambient** — group-based control with refresh actions
-- **Expert mode** — up to **350%** engine-audible cap (default UI max 200%)
-- **Localization** — 中文 / English UI
+Volume is **linear gain**: 200% ≈ +6 dB, 350% ≈ +10.9 dB. Values above the audible cap are clamped.
 
 ### Quick start
 
-1. Install via **KKT-Catalog** (table above).
-2. Open the plugin: `/soundmixer`.
-3. Use built-in groups or create your own; adjust sliders (0–200%, or higher in Expert mode).
-4. Enable **live monitor** to see paths, then drag or assign patterns to groups.
-5. Save a **preset** when you want different layouts (e.g. quiet housing vs. loud combat).
+1. Open the window: `/soundmixer` or `/smix`
+2. Enable the plugin in the toolbar if it is off
+3. Select or create a **group** in the left tree
+4. Set **group volume** (double-click the slider to type an exact %)
+5. Add **Glob path patterns**, or use the **live monitor** (right-click a line → add to group)
+6. Use **Refresh All Sounds** after changing volumes for BGM / ambient loops that keep playing
+7. Drag splitters to resize the top panel, group tree, or detail pane—layout is saved automatically
 
-### Feedback
+**Tips**
 
-Use GitHub Issues on this repository. When reporting matching problems, include the **sound path** and steps to reproduce. See [KNOWN_ISSUES.md](./KNOWN_ISSUES.md).
+- Turn on **Hide matched rules** in the monitor to focus on sounds you have not configured yet
+- **Expert Mode** unlocks 200–350%; watch for `[MAX]` / `[~]` badges on sliders
+- Toolbar **(IPC)** means another plugin has temporary overrides active
+
+### Recent highlights (0.2.1)
+
+- **Resizable UI**: drag between top controls and main content, and between group tree and details
+- **Layout memory**: panel sizes, window position/size, and group-tree expand state save automatically
+- See the in-game **Changelog** tab for full history
 
 ---
 
 ## 中文
 
-按 **SCD 路径** 精细调节最终幻想 XIV 音效音量。支持 **Glob** 分组、嵌套分组、**预设**、**IPC 临时覆盖** 与 **实时监听**。
+按 **SCD 路径** 调节 FF14 音效音量。用 **Glob 路径模式** 或单独路径匹配，在 **嵌套分组** 中管理，**0–200% 线性增益**（专家模式最高 **350%**，实测听感上限）。
 
-### 命令
+### 可以控制什么？
 
-| 命令 | 作用 |
+| 功能 | 说明 |
 |------|------|
-| `/soundmixer` | 打开/关闭主窗口 |
-| `/smix` | `/soundmixer` 的简写 |
+| **分组** | 树形嵌套、拖拽排序、根分组颜色、树中显示叠乘后的有效音量 |
+| **匹配** | Glob（如 `**/footstep/**`）、单独路径、`unknown/…` 路径修正 |
+| **预设** | 切换整套分组与音量方案；新建、复制、删除 |
+| **实时监听** | 最近播放路径、筛选、右键 → 加入分组 / 设音量 / 修正路径 |
+| **持续播放** | BGM、天气/环境音 hook；**刷新所有音效** 或按分组刷新 |
+| **外部控制** | 其他插件 IPC 临时覆盖（tag + priority）；登出后清除 |
 
-也可在 Dalamud 插件列表中点击齿轮图标打开。
+音量为 **线性倍率**：200% ≈ +6 dB，350% ≈ +10.9 dB；超过听感上限会自动钳制。
 
-### 功能
+### 安装
 
-- **按路径音量** — 匹配 `sound/...` 或 Glob（如 `**/weaponskill/**`）
-- **嵌套分组** — 拖放排序；根分组可自定义标签颜色
-- **预设** — 保存/切换整套分组与音量
-- **IPC 临时覆盖** — 供外部插件会话内控制（tag + priority）
-- **实时监听** — 可折叠面板；可隐藏已匹配项或按关键词过滤
-- **BGM / 天气环境音** — 分组控制与刷新
-- **专家模式** — 最高约 **350%** 听感上限（默认界面最大 200%）
-- **界面语言** — 中文 / English
+在 Dalamud → 设置 → 自定义插件库 中添加 **KKT-Catalog** 源（见上文表格）。
 
 ### 快速上手
 
-1. 通过 **KKT-Catalog** 安装（见上文表格）。
-2. 游戏内输入 `/soundmixer` 打开界面。
-3. 使用内置分组或新建分组，拖动滑块调节音量。
-4. 开启 **实时监听** 查看路径，再分配到分组或添加 Glob 规则。
-5. 不同场景可保存 **预设**。
+1. 打开窗口：`/soundmixer` 或 `/smix`
+2. 若未启用，在工具栏点击 **启用**
+3. 在左侧树选择或 **新建分组**
+4. 调节 **分组音量**（双击滑条可输入精确百分比）
+5. 添加 **Glob 路径模式**，或在 **实时监听** 中右键条目 → 加入分组
+6. 修改 BGM / 环境音等持续播放的音量后，点 **刷新所有音效** 立即生效
+7. 拖动分割条调整上方控制区、分组树与详情区大小——布局会自动保存
 
-### 反馈
+**小贴士**
 
-请在 GitHub 本仓库提交 Issue。反馈匹配问题时请附上 **音效路径** 与复现步骤。已知问题见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)。
+- 监听面板开启 **隐藏已匹配规则**，便于发现尚未配置的音效
+- **专家模式** 解锁 200–350%；滑条上的 `[MAX]` / `[~]` 为听感提示
+- 工具栏 **(IPC)** 表示有其他插件的临时覆盖生效中
 
----
+### 近期要点（0.2.1）
 
-## 仓库分工 · Repo layout
-
-| 内容 | WorkInProgress | 本仓库 (SoundMixer) | KKT-Catalog |
-|------|:--------------:|:-------------------:|:-----------:|
-| 源码 `*.cs` | ✅ | ✅ | ❌ |
-| `scripts/`、`dist/` | ✅ | ❌ | ❌ |
-| 发行 zip | ❌ | ❌ | ✅ `plugins/SoundMixer/` |
-| 插件图标源图 | ✅ `images/` | ❌ | ✅ `images/SoundMixer/icon.png` |
-| manifest 草稿 | ✅ `pluginmaster.*.json` | ❌ | ✅ `pluginmaster.cn.json` |
+- **可拖动 UI 分区**：上方控制区 / 主内容、分组树 / 详情
+- **布局记忆**：面板尺寸、窗口位置/大小、分组树展开状态自动保存
+- 完整历史见游戏内 **更新日志** 标签
