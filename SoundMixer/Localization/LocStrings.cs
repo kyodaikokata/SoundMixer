@@ -225,7 +225,11 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.2.0\n"
+            "v0.2.2.1\n"
+            + "· 修复官方黑名单始终显示 rev 0：嵌入/远程 JSON 反序列化（DTO JsonProperty）\n"
+            + "· 恢复 TryGetPathFromSoundData；官方同步改为主线程保存，失败日志升级为 Warning\n"
+            + "\n"
+            + "v0.2.2.0\n"
             + "· 骑乘 hook 挂起改为可选「安全模式」（默认关闭，位于专家模式后）\n"
             + "· 黑名单 Tab 支持手动拉取官方列表（10 秒冷却）\n"
             + "\n"
@@ -552,7 +556,11 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.2.0\n"
+            "v0.2.2.1\n"
+            + "· Fix official blacklist stuck at rev 0: JsonProperty for embedded/remote JSON\n"
+            + "· Restore TryGetPathFromSoundData; official sync saves on main thread; failures log as Warning\n"
+            + "\n"
+            + "v0.2.2.0\n"
             + "· Mount hook suspension is now optional Safe Mode (off by default, after Expert Mode)\n"
             + "· Blacklist tab: manual fetch for official list (10s cooldown)\n"
             + "\n"

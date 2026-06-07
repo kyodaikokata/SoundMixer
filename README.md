@@ -1,6 +1,6 @@
 # SoundMixer
 
-**Current version:** 0.2.2.0
+**Current version:** 0.2.2.1
 
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
