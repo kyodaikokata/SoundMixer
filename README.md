@@ -4,7 +4,7 @@
 
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
-Per-SCD-path volume control for FFXIV sound effects — custom groups, Glob patterns, presets, live monitor, and BGM/ambient support.
+Per-SCD-path volume control for FFXIV sound effects — custom groups, Glob patterns, presets, live monitor, IPC overrides, and BGM/ambient support.
 
 **Install and updates** are distributed through the unified **KKT-Catalog** custom plugin repository (not this repo). Add **one** repo URL in Dalamud → Settings → Custom Plugin Repositories:
 
@@ -15,9 +15,22 @@ Per-SCD-path volume control for FFXIV sound effects — custom groups, Glob patt
 
 Download links and the in-game plugin icon are hosted in [KKT-Catalog](https://github.com/kyodaikokata/KKT-Catalog) (`plugins/SoundMixer/latest-cn.zip`, `plugins/SoundMixer/latest-global.zip`, `images/SoundMixer/icon.png`). This repository contains **source code only**.
 
-### Release build (maintainers)
+---
 
-Build and publish scripts live in **WorkInProgress** (same layout as HeelsToggle). From `WorkInProgress/SoundMixer`:
+## v0.2.0 highlights
+
+- **IPC temporary overrides** for external plugins (tag + priority, cleared on logout)
+- Collapsible monitor / IPC panels (always visible); group tree shows stacked effective volume with green override labels
+- Play hooks via ClientStructs `MemberFunctionPointers`; consolidated logging when signatures mismatch
+- Live monitor scan guards; see [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
+- Release zip ships **`DotNet.Glob.dll`** alongside the plugin (4 files, no ILRepack)
+- Chinese / English UI including in-game changelog tab
+
+---
+
+## Release build (maintainers)
+
+Build and publish scripts live **only** under WorkInProgress. Run from there:
 
 ```powershell
 cd E:\work\DalamudProject\WorkInProgress\SoundMixer
@@ -25,14 +38,18 @@ cd E:\work\DalamudProject\WorkInProgress\SoundMixer
 # CN only: .\scripts\publish-release.ps1 -SkipGlobal
 ```
 
-This builds CN + Global zips (`dist/cn` and `dist/global`), then copies into [KKT-Catalog](https://github.com/kyodaikokata/KKT-Catalog) and updates `pluginmaster.cn.json` / `pluginmaster.global.json`.
+This builds CN + Global zips into `dist/`, then publishes into [KKT-Catalog](https://github.com/kyodaikokata/KKT-Catalog) via `publish-plugin.ps1` with `-WorkInProgressRoot` pointing at the WIP folder (so `PublishHelpers.ps1` is loaded from WIP, not from this repo).
+
+A wrapper script exists at `Release/SoundMixer/scripts/publish-release.ps1` but it delegates build/publish paths to WorkInProgress.
 
 To refresh **this** source repo from WIP after edits:
 
 ```powershell
-cd E:\work\DalamudProject\release\SoundMixer
+cd E:\work\DalamudProject\Release\SoundMixer
 .\sync-from-wip.ps1
 ```
+
+`sync-from-wip.ps1` copies source and images only — not `scripts/`, `dist/`, or build outputs.
 
 ---
 
@@ -76,7 +93,7 @@ Use GitHub Issues on this repository. When reporting matching problems, include 
 
 ## 中文
 
-按 **SCD 路径** 精细调节最终幻想 XIV 音效音量。支持 **Glob** 分组、嵌套分组、**预设** 与 **实时监听**。
+按 **SCD 路径** 精细调节最终幻想 XIV 音效音量。支持 **Glob** 分组、嵌套分组、**预设**、**IPC 临时覆盖** 与 **实时监听**。
 
 ### 命令
 
@@ -93,7 +110,7 @@ Use GitHub Issues on this repository. When reporting matching problems, include 
 - **嵌套分组** — 拖放排序；根分组可自定义标签颜色
 - **预设** — 保存/切换整套分组与音量
 - **IPC 临时覆盖** — 供外部插件会话内控制（tag + priority）
-- **实时监听** — 显示最近播放音效；可折叠面板；可隐藏已匹配项或按关键词过滤
+- **实时监听** — 可折叠面板；可隐藏已匹配项或按关键词过滤
 - **BGM / 天气环境音** — 分组控制与刷新
 - **专家模式** — 最高约 **350%** 听感上限（默认界面最大 200%）
 - **界面语言** — 中文 / English
@@ -102,9 +119,9 @@ Use GitHub Issues on this repository. When reporting matching problems, include 
 
 1. 通过 **KKT-Catalog** 安装（见上文表格）。
 2. 游戏内输入 `/soundmixer` 打开界面。
-3. 使用内置分组或新建分组，拖动滑块调节音量（0–200%，专家模式可更高）。
+3. 使用内置分组或新建分组，拖动滑块调节音量。
 4. 开启 **实时监听** 查看路径，再分配到分组或添加 Glob 规则。
-5. 不同场景可保存 **预设**（如室内安静 / 战斗增强）。
+5. 不同场景可保存 **预设**。
 
 ### 反馈
 
@@ -115,9 +132,9 @@ Use GitHub Issues on this repository. When reporting matching problems, include 
 ## 仓库分工 · Repo layout
 
 | 内容 | WorkInProgress | 本仓库 (SoundMixer) | KKT-Catalog |
-|------|----------------|---------------------|-------------|
+|------|:--------------:|:-------------------:|:-----------:|
 | 源码 `*.cs` | ✅ | ✅ | ❌ |
-| `scripts/` 构建发版 | ✅ | ❌ | ❌ |
-| 发行 zip | ❌ (`dist/` 仅本地) | ❌ | ✅ `plugins/SoundMixer/` |
-| 插件图标 | ✅ `images/` | ❌ | ✅ `images/SoundMixer/icon.png` |
-| manifest 草稿 | ✅ `pluginmaster.*.json` | ❌ (gitignore) | ✅ `pluginmaster.cn.json` |
+| `scripts/`、`dist/` | ✅ | ❌ | ❌ |
+| 发行 zip | ❌ | ❌ | ✅ `plugins/SoundMixer/` |
+| 插件图标源图 | ✅ `images/` | ❌ | ✅ `images/SoundMixer/icon.png` |
+| manifest 草稿 | ✅ `pluginmaster.*.json` | ❌ | ✅ `pluginmaster.cn.json` |
