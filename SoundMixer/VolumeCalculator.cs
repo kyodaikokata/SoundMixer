@@ -89,7 +89,16 @@ public class VolumeCalculator
             return true;
         }
 
-        return ResolveGroupId(soundPath) != null;
+        soundPath = soundPath.ToLowerInvariant();
+        foreach (var group in Groups)
+        {
+            if (GroupOwnRulesMatch(soundPath, group.Id))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public bool IsHiddenFromMonitorByGroup(string soundPath)
@@ -183,6 +192,13 @@ public class VolumeCalculator
 
     public bool SoundBelongsToGroupTree(string soundPath, string groupId)
     {
+        // Refresh must match child groups by their own globs even when deepest ResolveGroupId
+        // falls back to a parent (e.g. PlaySound nodes with a broader resolved SCD path).
+        if (GroupOwnRulesMatch(soundPath, groupId))
+        {
+            return true;
+        }
+
         var resolvedGroupId = ResolveGroupId(soundPath);
         if (resolvedGroupId == null)
         {
@@ -197,10 +213,47 @@ public class VolumeCalculator
         return IsDescendantGroup(resolvedGroupId, groupId);
     }
 
-    private static bool IsDescendantGroup(Configuration config, string childGroupId, string ancestorGroupId)
+    private bool GroupOwnRulesMatch(string soundPath, string groupId)
+    {
+        soundPath = ResolveScdPath(soundPath.ToLowerInvariant());
+        var group = Groups.FirstOrDefault(g => g.Id == groupId);
+        if (group == null)
+        {
+            return false;
+        }
+
+        if (group.SoundPaths.Contains(soundPath))
+        {
+            return true;
+        }
+
+        var scdPath = GetScdPath(soundPath);
+        if (scdPath != soundPath && group.SoundPaths.Contains(scdPath))
+        {
+            return true;
+        }
+
+        var globs = GetGlobs();
+        foreach (var pattern in group.PathPatterns)
+        {
+            if (!globs.TryGetValue(pattern, out var glob))
+            {
+                continue;
+            }
+
+            if (glob.IsMatch(soundPath) || (scdPath != soundPath && glob.IsMatch(scdPath)))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsDescendantGroup(IReadOnlyList<SoundGroup> groups, string childGroupId, string ancestorGroupId)
     {
         var visited = new HashSet<string>();
-        var current = config.Groups.FirstOrDefault(g => g.Id == childGroupId);
+        var current = groups.FirstOrDefault(g => g.Id == childGroupId);
         var depth = 0;
 
         while (current?.ParentId != null && depth++ < 64)
@@ -215,7 +268,7 @@ public class VolumeCalculator
                 return true;
             }
 
-            current = config.Groups.FirstOrDefault(g => g.Id == current.ParentId);
+            current = groups.FirstOrDefault(g => g.Id == current.ParentId);
         }
 
         return false;
@@ -223,26 +276,13 @@ public class VolumeCalculator
 
     private bool IsDescendantGroup(string childGroupId, string ancestorGroupId)
     {
-        return IsDescendantGroup(Config, childGroupId, ancestorGroupId);
+        return IsDescendantGroup(Groups, childGroupId, ancestorGroupId);
     }
 
     private string? ResolveGroupId(string soundPath)
     {
-        soundPath = ResolveScdPath(soundPath.ToLowerInvariant());
-
-        var groupId = FindGroupForSound(soundPath);
-        if (groupId != null)
-        {
-            return groupId;
-        }
-
-        var scdPath = GetScdPath(soundPath);
-        if (scdPath != soundPath)
-        {
-            return FindGroupForSound(scdPath);
-        }
-
-        return null;
+        CalculateStackedGroupVolume(ResolveScdPath(soundPath.ToLowerInvariant()), out _, out var deepestMatchedId);
+        return deepestMatchedId;
     }
 
     public float GetVolumeForSound(string soundPath)
@@ -253,35 +293,34 @@ public class VolumeCalculator
             return cachedVolume;
         }
 
-        var volume = CalculateVolume(soundPath);
-
-        if (Math.Abs(volume - 1.0f) < 0.001f)
-        {
-            var scdPath = GetScdPath(soundPath);
-            if (scdPath != soundPath)
-            {
-                volume = CalculateVolume(scdPath);
-            }
-        }
+        var volume = CalculateVolume(soundPath, out _);
 
         volume = Configuration.ClampToEngineCap(volume);
         VolumeCache[soundPath] = volume;
         return volume;
     }
 
-    private float CalculateVolume(string soundPath)
+    private float CalculateVolume(string soundPath, out string? matchedGroupId)
     {
         soundPath = soundPath.ToLowerInvariant();
+        matchedGroupId = null;
 
         if (IndividualVolumes.TryGetValue(soundPath, out var individualVolume))
         {
             return individualVolume;
         }
 
-        var groupId = ResolveGroupId(soundPath);
-        if (groupId != null)
+        if (SoundToGroup.TryGetValue(soundPath, out var explicitGroupId))
         {
-            return GetGroupVolume(groupId);
+            matchedGroupId = explicitGroupId;
+            var explicitVolume = CalculateStackedGroupVolume(soundPath, out _, out _);
+            if (Math.Abs(explicitVolume - 1.0f) > 0.001f)
+            {
+                return explicitVolume;
+            }
+
+            var group = Groups.FirstOrDefault(g => g.Id == explicitGroupId);
+            return group?.GroupVolume ?? 1.0f;
         }
 
         var resolvedPath = ResolveScdPath(soundPath);
@@ -290,78 +329,45 @@ public class VolumeCalculator
             return individualVolume;
         }
 
-        return 1.0f;
-    }
-
-    private string? FindGroupForSound(string soundPath)
-    {
-        soundPath = soundPath.ToLowerInvariant();
-
-        if (SoundToGroup.TryGetValue(soundPath, out var explicitGroupId))
-        {
-            return explicitGroupId;
-        }
-
-        var candidates = new List<string>();
-
-        foreach (var group in Groups)
-        {
-            if (group.SoundPaths.Contains(soundPath))
-            {
-                candidates.Add(group.Id);
-            }
-        }
-
-        var globs = GetGlobs();
-        foreach (var group in Groups)
-        {
-            foreach (var pattern in group.PathPatterns)
-            {
-                if (globs.TryGetValue(pattern, out var glob) && glob.IsMatch(soundPath))
-                {
-                    candidates.Add(group.Id);
-                    break;
-                }
-            }
-        }
-
-        return SelectDeepestMatchingGroup(candidates);
+        return CalculateStackedGroupVolume(soundPath, out matchedGroupId, out _);
     }
 
     /// <summary>
-    /// When multiple groups match the same path (e.g. parent and child Glob patterns),
-    /// prefer the deepest node in the group tree.
+    /// Multiply every group whose own glob/path rules match (same semantics as refresh / SoundBelongsToGroupTree).
+    /// ResolveGroupId alone only picked one deepest group and missed parent×child stacking on indexed paths.
     /// </summary>
-    private string? SelectDeepestMatchingGroup(List<string> candidates)
+    private float CalculateStackedGroupVolume(
+        string soundPath,
+        out string? anyMatchedGroupId,
+        out string? deepestMatchedGroupId
+    )
     {
-        if (candidates.Count == 0)
+        anyMatchedGroupId = null;
+        deepestMatchedGroupId = null;
+        var volume = 1.0f;
+        var any = false;
+        var deepestDepth = -1;
+
+        foreach (var group in Groups)
         {
-            return null;
-        }
-
-        if (candidates.Count == 1)
-        {
-            return candidates[0];
-        }
-
-        string? bestId = null;
-        var bestDepth = -1;
-        var bestIndex = -1;
-
-        foreach (var groupId in candidates)
-        {
-            var depth = GetGroupDepth(groupId);
-            var index = IndexOfGroup(groupId);
-
-            if (depth > bestDepth || (depth == bestDepth && index > bestIndex))
+            if (!GroupOwnRulesMatch(soundPath, group.Id))
             {
-                bestDepth = depth;
-                bestIndex = index;
-                bestId = groupId;
+                continue;
+            }
+
+            volume *= group.GroupVolume;
+            any = true;
+            anyMatchedGroupId ??= group.Id;
+
+            var depth = GetGroupDepth(group.Id);
+            if (depth >= deepestDepth)
+            {
+                deepestDepth = depth;
+                deepestMatchedGroupId = group.Id;
             }
         }
 
-        return bestId;
+        return any ? volume : 1.0f;
     }
 
     private int GetGroupDepth(string groupId)
@@ -384,40 +390,9 @@ public class VolumeCalculator
         return depth;
     }
 
-    private int IndexOfGroup(string groupId)
-    {
-        for (var i = 0; i < Groups.Count; i++)
-        {
-            if (Groups[i].Id == groupId)
-            {
-                return i;
-            }
-        }
-
-        return -1;
-    }
-
-    private float GetGroupVolume(string groupId)
-    {
-        var group = Groups.FirstOrDefault(g => g.Id == groupId);
-        if (group == null)
-        {
-            return 1.0f;
-        }
-
-        var volume = group.GroupVolume;
-
-        if (group.ApplyToChildren && group.ParentId != null)
-        {
-            volume *= GetGroupVolume(group.ParentId);
-        }
-
-        return volume;
-    }
-
     private string ResolveScdPath(string rawPath)
     {
-        return PathResolver.ResolveScdPath(Config, rawPath, PathAliases);
+        return PathResolver.ResolveScdPath(Config, rawPath, PathAliases, 0);
     }
 
     private Dictionary<string, Glob> GetGlobs()

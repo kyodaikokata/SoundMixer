@@ -158,7 +158,7 @@ Exception in event handler "IFramework::Update"
 **0.2.2.0**
 
 - 骑乘 hook 挂起改为可选 **安全模式**（默认**关闭**；工具栏位于专家模式之后）。关闭时骑乘期仍应用音量规则。
-- 若在外勤机等坐骑上仍崩溃：开启安全模式，和/或依赖官方黑名单（`se_bt_etc_mount_guideroid` 等）。
+- **0.2.3.1 起已移除该开关**；路径解析始终安全，骑乘保护依赖官方黑名单与行动守卫。
 
 **0.2.3.0**
 
@@ -198,6 +198,64 @@ Exception in event handler "IFramework::Update"
 
 ---
 
+## 6. 嵌套脚步声子组不生效（父组有效、子组无效）
+
+| 项目 | 内容 |
+|------|------|
+| **发现时间** | 2026-06-08 |
+| **发现版本** | SoundMixer **0.2.3.0** 及更早 |
+| **状态** | **已修复**（**0.2.3.1**：`SoundEnforcement` + 路径/规则/index 统一） |
+
+### 现象
+
+典型配置：父组「脚步声」`foot/foot**` 200%，子组「木地板」`foot/foot/fs_wood**` 0%。父组变响，子组仍听得见。  
+监听 log 可显示正确材质路径 `fs_wood…/1` 与 0% 倍率，但听感未静音。  
+开启 **PlaySound** hook 时父子往往都「有效」，易误判为缺 hook。
+
+### 原因（四条分裂叠加）
+
+1. **路径分裂**：监听用 `TryResolveSoundPath`（FileName + Scds）得材质路径；强制音量曾用 `tracked.ScdPath`、`GetPathFromSoundData`（仅容器 `foot/foot.scd`）等旁路。  
+2. **规则分裂**：刷新/监听用 `GroupOwnRulesMatch` 叠乘父子组；`GetVolumeForSound` 曾只取单组，且叠乘 ≈100% 时回退宽路径。  
+3. **index 分裂**：`PlaySpecificSound` 打在 `/27` 等 setup index；可听的是 PlaySound `/1`，默认不 hook 时原生播放未缩放。  
+4. **PlaySound 掩盖**：手动开 hook 后在播放链补缩放，掩盖上述分裂。
+
+### 修复（0.2.3.1）
+
+- 不变量：**log 中的 `specificPath` + 倍率 = 强制音量唯一输入**（`SoundEnforcement`）。  
+- `GetVolumeForSound` 叠乘所有匹配分组；`ChooseNodeEnforcementPath` 选材质路径；脚步声跳过 setup index、仅缩放 `/1`。  
+- 详细时序与复盘见 [POSTMORTEM_0.2.3.1.md](./POSTMORTEM_0.2.3.1.md)。
+
+---
+
+## 7. 插件加载瞬间崩溃（统一 SoundEnforcement 后）
+
+| 项目 | 内容 |
+|------|------|
+| **发现时间** | 2026-06-08 |
+| **发现版本** | SoundMixer **0.2.3.0**（接入 `SoundEnforcement`、SafeMode 可关） |
+| **状态** | **已修复**（**0.2.3.1**：始终安全路径，移除 SafeMode） |
+
+### 现象
+
+插件加载（Enable hook）瞬间游戏 CTD，无 Dalamud 托管异常。
+
+### 原因
+
+`GetMultiplier` / SetVolume hook 在 Enable 后立即对活跃音效（含 BGM/流媒体）调用 `SoundEnforcement` → `TryResolveSoundPath`。  
+当 **安全模式关闭** 时，安全解析失败会回退 **`ISoundData.GetFileName()`** 虚函数；部分 native 节点对该调用敏感 → **访问冲突**，C# 无法捕获。
+
+### 修复（0.2.3.1）
+
+- 删除 `SafeMode` 开关与 `TryGetUnsafeFileName`；全插件禁止 `GetFileName()`。  
+- `ResolveSoundEnforcement` 仅 `TryResolveSafeSoundPath`（handle CString + Scds 缓存）。  
+- 配置迁移 v8。
+
+### 复盘
+
+多轮修复只统一了「监听」管道，强制音量仍保留 `GetFileName` 可选回退；直到热路径全面接入 `SoundEnforcement` 才组合爆炸。见 [POSTMORTEM_0.2.3.1.md](./POSTMORTEM_0.2.3.1.md) §4。
+
+---
+
 ## 5. 文档与早期 MVP 文案
 
 `DESIGN.md` 中部分早期设计草案（如 FMOD 缓冲修改、500% 上限）**未反映当前实现**。以本文档、游戏内「更新日志」、`SoundMixer.json` / Catalog manifest 为准。
@@ -208,6 +266,7 @@ Exception in event handler "IFramework::Update"
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-08 | 0.2.3.1 | 移除 SafeMode；SoundEnforcement；嵌套脚步子组；加载 CTD；POSTMORTEM |
 | 2026-06-08 | 0.2.3.0 | PlaySound 默认禁用（CTD）；UI 音效/清除缓存；外勤机 grace 与骑乘 BGM；守卫 rev3 |
 | 2026-06-08 | 0.2.2.1 | 修复官方黑名单 JSON 反序列化（rev 0）；TryGetPathFromSoundData |
 | 2026-06-08 | 0.2.2.0 | 安全模式（骑乘 hook 可选）；默认骑乘期仍混音 |

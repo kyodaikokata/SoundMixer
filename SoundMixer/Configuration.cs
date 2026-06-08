@@ -9,15 +9,10 @@ namespace SoundMixer;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 7;
+    public int Version { get; set; } = 8;
 
     public bool Enabled { get; set; } = true;
     public bool ExpertMode { get; set; } = false;
-
-    /// <summary>
-    /// When enabled, suspend audio hooks while mounted / during mount transitions (legacy 0.2.1.6 guard).
-    /// </summary>
-    public bool SafeMode { get; set; } = true;
 
     public bool EnableMonitoring { get; set; } = true;
 

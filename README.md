@@ -1,6 +1,6 @@
 # SoundMixer
 
-**Current version:** 0.2.3.0
+**Current version:** 0.2.3.1
 
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
@@ -21,6 +21,7 @@ Install and updates are distributed through the unified **KKT-Catalog** custom p
 |----------|-------------|
 | [DESIGN.md](./DESIGN.md) | Architecture and module map (current implementation) |
 | [KNOWN_ISSUES.md](./KNOWN_ISSUES.md) | Known issues and troubleshooting |
+| [POSTMORTEM_0.2.3.1.md](./POSTMORTEM_0.2.3.1.md) | Root cause: nested footstep groups + load CTD (0.2.3.1) |
 
 In-game changelog: **更新日志 / Changelog** tab (`/soundmixer` or `/smix`).
 
@@ -46,18 +47,11 @@ Per-SCD-path volume mixer for FFXIV sound effects. Match sounds by **Glob path p
 
 Volume is **linear gain**: 200% ≈ +6 dB, 350% ≈ +10.9 dB. Values above the audible cap are clamped.
 
-### Safe Mode (mount guard)
+### Path resolution (always safe)
 
-By default, SoundMixer **keeps applying volume rules while mounted**.
+All path resolution and volume enforcement use **safe reads only** (`SoundResourceHandle` + Scds cache). The plugin **never** calls `ISoundData.GetFileName()` (known CTD risk on streaming nodes). This replaced the old optional **Safe Mode** toggle in **0.2.3.1**.
 
-Enable **Safe Mode** (toolbar, right after **Expert Mode**) if you experience crashes on certain mounts (e.g. Guideroid):
-
-| Safe Mode | Behavior |
-|-----------|----------|
-| **Off** (default) | Hooks stay active while mounted; footsteps and other rules still apply |
-| **On** | Suspend all audio hooks during mount / dismount transitions (~5 s grace); skip active-sound list scans |
-
-The **official blacklist** (under Advanced Settings) blocks risky mount-loop paths while **BGM and SetVolume/GetVolume stay active** during Guideroid grace (0.2.3.0).
+For mount-related crashes, rely on the **official blacklist** and action guards (Guideroid grace skips active-list scans; SetVolume/GetVolume stay active).
 
 ### Quick start
 
@@ -73,17 +67,16 @@ The **official blacklist** (under Advanced Settings) blocks risky mount-loop pat
 
 - Turn on **Hide matched rules** in the monitor to focus on sounds you have not configured yet
 - **Expert Mode** unlocks 200–350%; watch for `[MAX]` / `[~]` badges on sliders
-- **Safe Mode** is opt-in—only enable if mounts cause crashes; see [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
 - **Blacklist** tab: add your own rules, or **Fetch official list** (10 s cooldown) for author-maintained entries
 - Toolbar **(IPC)** means another plugin has temporary overrides active
 
-### Recent highlights (0.2.3.0)
+### Recent highlights (0.2.3.1)
 
-- **PlaySound disabled by default** (confirmed CTD); danger notice in **Debug** tab; enable only for diagnosis
-- **UI one-shot sounds**: fixed mute after group volume changes; toolbar **Clear Cache** without restarting
-- **Guideroid / mount BGM**: SetVolume/GetVolume stay enabled during grace; ride BGM volume applies while mounted
-- **Group tree**: effective volume from own path rules only; color sync only when parent changes
-- See the in-game **Changelog** tab for full history
+- **Safe path always on**: Safe Mode toggle removed; fixes load-time CTD when unsafe `GetFileName` fallback was used
+- **Nested footstep child groups**: parent + child multipliers stack correctly without PlaySound hook
+- **SoundEnforcement**: volume enforcement uses the same path and multiplier as the live monitor log
+- See [POSTMORTEM_0.2.3.1.md](./POSTMORTEM_0.2.3.1.md) for root cause and lessons learned
+- **0.2.3.0**: PlaySound off by default; UI one-shot fix; Guideroid grace / mount BGM — see in-game **Changelog**
 
 ---
 
@@ -107,18 +100,11 @@ The **official blacklist** (under Advanced Settings) blocks risky mount-loop pat
 
 音量为 **线性倍率**：200% ≈ +6 dB，350% ≈ +10.9 dB；超过听感上限会自动钳制。
 
-### 安全模式（骑乘保护）
+### 路径解析（始终安全）
 
-默认情况下，**骑乘时仍会应用音量规则**（脚步、分组缩放等照常生效）。
+路径解析与强制音量**仅使用安全读取**（`SoundResourceHandle` + Scds 缓存），**永不**调用 `ISoundData.GetFileName()`（流媒体节点已知 CTD 风险）。**0.2.3.1** 起移除原工具栏「安全模式」开关。
 
-若在特定坐骑（如外勤机）上遇到崩溃，可在工具栏 **专家模式** 后勾选 **安全模式**：
-
-| 安全模式 | 行为 |
-|----------|------|
-| **关闭**（默认） | 骑乘期间 hook 保持启用，音量规则正常生效 |
-| **开启** | 骑乘及上下马过渡期间挂起全部音频 hook（含约 5 秒 grace）；跳过活跃音效链表扫描 |
-
-**官方黑名单**（高级设置 → 音效黑名单）会屏蔽高风险坐骑循环路径；**0.2.3.0 起**外勤机 grace 期间仍保留 SetVolume/GetVolume，骑乘 BGM 可正常调节。
+骑乘相关崩溃请依赖 **官方黑名单** 与行动守卫（外勤机 grace 仅跳过活跃链表扫描，SetVolume/GetVolume 保持启用）。
 
 ### 安装
 
@@ -138,14 +124,13 @@ The **official blacklist** (under Advanced Settings) blocks risky mount-loop pat
 
 - 监听面板开启 **隐藏已匹配规则**，便于发现尚未配置的音效
 - **专家模式** 解锁 200–350%；滑条上的 `[MAX]` / `[~]` 为听感提示
-- **安全模式** 为可选项——仅在上/下马崩溃时开启；详见 [KNOWN_ISSUES.md](./KNOWN_ISSUES.md)
 - **黑名单** Tab：自定义规则，或点 **拉取官方列表**（10 秒冷却）获取作者维护条目
 - 工具栏 **(IPC)** 表示有其他插件的临时覆盖生效中
 
-### 近期要点（0.2.3.0）
+### 近期要点（0.2.3.1）
 
-- **PlaySound 默认禁用**（已确认崩溃）；**调试** Tab 有危险说明，仅排查时手动开启
-- **UI 一次性音效**：修复分组调音量后 UI 音全静音；工具栏 **清除缓存** 无需重开游戏
-- **外勤机 / 骑乘 BGM**：grace 期间不再挂起 SetVolume/GetVolume；骑乘 BGM 可正常调节
-- **分组树**：实际音量仅看自身路径规则；改色仅父级变化时同步子组
-- 完整历史见游戏内 **更新日志** 标签
+- **始终安全路径**：移除安全模式开关；修复关闭安全模式时加载瞬间 CTD
+- **嵌套脚步声子组**：不开 PlaySound hook 时子组（如木地板 0%）正确生效
+- **SoundEnforcement**：强制音量与监听 log 同源
+- 根因与复盘见 [POSTMORTEM_0.2.3.1.md](./POSTMORTEM_0.2.3.1.md)
+- **0.2.3.0**：PlaySound 默认禁用、UI 音效、外勤机/骑乘 BGM — 见游戏内 **更新日志**

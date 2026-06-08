@@ -121,13 +121,13 @@ internal sealed class SoundMixerApi
         group.GroupVolume = Configuration.ClampToUiRange(volume, max);
         _plugin.Config.Save();
         _plugin.Config.InvalidateGlobCache();
-        _plugin.VolumeCalculator.ClearCache();
+        RefreshEffectiveState(reason: "set-group-volume");
+
         if (_plugin.IsEffectivelyEnabled && _plugin.Filter.CanSafelyRefreshActiveSounds())
         {
             _plugin.Filter.RefreshGroupSounds(group.Id);
         }
 
-        RefreshEffectiveState(reason: "set-group-volume");
         return SoundMixerApiEc.Success;
     }
 

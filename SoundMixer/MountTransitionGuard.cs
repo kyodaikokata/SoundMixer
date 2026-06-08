@@ -3,8 +3,8 @@ using Dalamud.Game.ClientState.Conditions;
 namespace SoundMixer;
 
 /// <summary>
-/// Safe Mode: broad mount guard (all mounts). Official Guideroid blacklist uses a separate
-/// sliding grace window refreshed only by Guideroid path activity — never latched to "any mount".
+/// Mount transition timing. Official Guideroid blacklist uses a separate sliding grace window
+/// refreshed only by Guideroid path activity — never latched to "any mount".
 /// </summary>
 internal static class MountTransitionGuard
 {
@@ -22,8 +22,6 @@ internal static class MountTransitionGuard
     private static bool s_loggedGuideroidInactive;
 
     internal static bool IsActive => s_cachedActive;
-
-    internal static bool IsEngaged(bool safeMode) => safeMode && IsActive;
 
     internal static bool IsGuideroidLoopSafetyActive =>
         SoundBlacklist.HasMountLoopBlockRules()
@@ -93,7 +91,7 @@ internal static class MountTransitionGuard
         }
     }
 
-    internal static void NotifyMountSound(string? path, bool safeMode)
+    internal static void NotifyMountSound(string? path)
     {
         if (string.IsNullOrWhiteSpace(path))
         {
@@ -101,14 +99,6 @@ internal static class MountTransitionGuard
         }
 
         var normalized = path.ToLowerInvariant();
-
-        if (safeMode && IsMountRelatedPath(normalized))
-        {
-            s_graceUntilUtc = DateTime.UtcNow.AddSeconds(GraceSeconds);
-            s_cachedActive = true;
-            s_loggedActive = false;
-            return;
-        }
 
         if (SoundBlacklist.IsMountLoopBlockedPath(normalized))
         {

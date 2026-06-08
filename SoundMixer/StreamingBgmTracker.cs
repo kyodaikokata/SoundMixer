@@ -59,7 +59,7 @@ internal static unsafe class StreamingBgmTracker
     internal static bool TryResolvePendingPath(SoundData* soundData, out string path)
     {
         path = string.Empty;
-        if (soundData == null)
+        if (soundData == null || ZoneTransitionGuard.ShouldSkipSoundDataListAccess())
         {
             return false;
         }
@@ -148,6 +148,11 @@ internal static unsafe class StreamingBgmTracker
 
     private static void TryClaimStreamingNodeForPendingBgm()
     {
+        if (ZoneTransitionGuard.ShouldSkipSoundDataListAccess())
+        {
+            return;
+        }
+
         string pendingPath;
         lock (Gate)
         {

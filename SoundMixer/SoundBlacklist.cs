@@ -162,6 +162,11 @@ internal static unsafe class SoundBlacklist
 
     internal static void PruneInactivePointers()
     {
+        if (ZoneTransitionGuard.ShouldSkipSoundDataListAccess())
+        {
+            return;
+        }
+
         foreach (var ptr in BlockedPointers.Keys)
         {
             var soundData = (SoundData*)ptr;

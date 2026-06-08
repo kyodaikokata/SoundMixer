@@ -36,10 +36,6 @@ internal static class LocStrings
         [BtnClearCacheTip] = "清除插件运行时追踪与音量缓存，并尽量恢复被改写的 SoundData 池节点\n不修改已保存的分组配置；UI 音效异常时可点此，无需重开游戏",
         [ExpertMode] = "专家模式 (最大350%)",
         [ExpertModeTip] = "专家模式允许设置 200% - 350%\n实测引擎听感上限约在 300% - 350% 区间\n超过 350% 不会再更响，插件会自动钳制\n200%=+6dB, 350%≈+10.9dB",
-        [SafeMode] = "安全模式",
-        [SafeModeTip] = "开启后：禁止通过 GetFileName 回退解析路径（更安全，流媒体节点可能解析失败）\n"
-            + "解析失败时在最近播放列表以红字显示诊断信息；音频 hook 保持运行\n"
-            + "关闭安全模式时仍可使用 GetFileName 回退；外勤机黑名单仍会跳过活跃链表扫描",
         [Monitoring] = "实时监听",
         [MonitoringTip] = "在顶部面板显示最近播放的音效路径与匹配分组",
         [TrackedScd] = "已追踪 SCD: {0}",
@@ -65,7 +61,7 @@ internal static class LocStrings
         [MonitorPlayingTag] = "[播放中]",
         [MonitorPathResolveFailed] = "路径解析失败",
         [MonitorPathResolveFailedDetail] =
-            "{0} | SD=0x{1} #{2} active={3} tracked={4} handle={5} scds={6} safe={7}",
+            "{0} | SD=0x{1} #{2} active={3} tracked={4} handle={5} scds={6}",
 
         [DebugTabHint] = "用于 CTD 溯源：开启「手动控制」后可逐个启用/禁用 hook。「已解析」= 签名匹配且 hook 对象存在；「运行中」= 当前是否 Enable。关闭手动控制时恢复插件默认策略。",
         [DebugManualControl] = "手动控制 hook",
@@ -328,7 +324,14 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.3.0\n"
+            "v0.2.3.1\n"
+            + "· 移除安全模式开关：路径解析与强制音量始终走安全路径（禁止 ISoundData.GetFileName）\n"
+            + "· 修复插件加载瞬间 CTD：SoundEnforcement 统一 TryResolveSafeSoundPath，关闭安全模式时不再回退 GetFileName\n"
+            + "· 修复嵌套脚步声子组（不开 PlaySound hook）：SoundEnforcement 与监听 log 同源；父子叠乘倍率\n"
+            + "· 脚步声：FileName 为 foot/foot 容器时选用 Scds 材质路径；跳过 /27 等 setup 索引，仅缩放 /1 播放节点\n"
+            + "· 配置迁移 v8；根因与复盘见仓库 POSTMORTEM_0.2.3.1.md\n"
+            + "\n"
+            + "v0.2.3.0\n"
             + "· PlaySound 已确认会导致崩溃：默认不加载，调试页显示危险说明；一键全开也不会启用\n"
             + "· 修复 UI 一次性音效在分组音量调整后全部静音；工具栏新增清除缓存\n"
             + "· 外勤机 grace 不再挂起 SetVolume/GetVolume；骑乘 BGM 可正常调节音量\n"
@@ -577,10 +580,6 @@ internal static class LocStrings
         [BtnClearCacheTip] = "Clear runtime tracking and volume caches, and restore pooled SoundData nodes when possible.\nDoes not change saved group settings. Use when UI sounds glitch instead of restarting the game.",
         [ExpertMode] = "Expert Mode (max 350%)",
         [ExpertModeTip] = "Expert mode allows 200% - 350% linear gain.\nAudible engine cap is around 300% - 350%.\nValues above 350% are clamped.\n200% = +6 dB, 350% ≈ +10.9 dB",
-        [SafeMode] = "Safe Mode",
-        [SafeModeTip] = "When on: never fall back to GetFileName for path resolution (safer; streaming nodes may fail).\n"
-            + "Failures appear in red in the recent-sounds list with diagnostics; audio hooks stay enabled.\n"
-            + "When off: GetFileName fallback is allowed. Guideroid blacklist still skips active list scans.",
         [Monitoring] = "Live Monitor",
         [MonitoringTip] = "Show recently played sound paths and matched groups at the top",
         [TrackedScd] = "Tracked SCD: {0}",
@@ -606,7 +605,7 @@ internal static class LocStrings
         [MonitorPlayingTag] = "[Playing]",
         [MonitorPathResolveFailed] = "Path resolve failed",
         [MonitorPathResolveFailedDetail] =
-            "{0} | SD=0x{1} #{2} active={3} tracked={4} handle={5} scds={6} safe={7}",
+            "{0} | SD=0x{1} #{2} active={3} tracked={4} handle={5} scds={6}",
 
         [DebugTabHint] = "Trace CTDs: enable Manual control to toggle each hook. Resolved = signature matched; Runtime = currently Enabled. Turn manual control off to restore default plugin policy.",
         [DebugManualControl] = "Manual hook control",
@@ -869,7 +868,14 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.3.0\n"
+            "v0.2.3.1\n"
+            + "· Removed Safe Mode toggle: path resolve and enforcement always use safe reads (no ISoundData.GetFileName)\n"
+            + "· Fix load-time CTD: SoundEnforcement uses TryResolveSafeSoundPath only; no GetFileName fallback when Safe Mode was off\n"
+            + "· Fix nested footstep child groups without PlaySound hook: SoundEnforcement matches monitor log; stacked parent+child multipliers\n"
+            + "· Footsteps: Scds material path when FileName is foot container; skip setup indices (/27), scale playback /1 only\n"
+            + "· Config migration v8; root cause and postmortem in repo POSTMORTEM_0.2.3.1.md\n"
+            + "\n"
+            + "v0.2.3.0\n"
             + "· PlaySound confirmed to crash the game: not loaded by default; danger notice in Debug tab; All On keeps it off\n"
             + "· Fix UI one-shot sounds muted after group volume changes; toolbar Clear Cache button\n"
             + "· Guideroid grace no longer suspends SetVolume/GetVolume; ride BGM volume applies while mounted\n"

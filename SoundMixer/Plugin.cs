@@ -76,6 +76,7 @@ public class Plugin : IDalamudPlugin
         MigrateVolumeAboveEngineCap();
         MigrateSoundBlacklistEntries();
         MigratePlaySoundDisabledByDefault();
+        MigrateRemoveSafeModeSetting();
         PresetManager.Initialize(Config);
         DefaultGroupLocalization.Apply(Config);
 
@@ -95,6 +96,7 @@ public class Plugin : IDalamudPlugin
         DisableDebugManualHookControl(reapplyHooks: false);
 
         Services.ClientState.Logout += OnLogout;
+        Services.ClientState.TerritoryChanged += OnTerritoryChanged;
     }
 
     internal void RebuildSoundBlacklist()
@@ -269,7 +271,8 @@ public class Plugin : IDalamudPlugin
     private void OnLogout(int type, int code)
     {
         MountTransitionGuard.ClearGuideroidSession();
-        SoundBlacklist.ClearPointerCache();
+        ZoneTransitionGuard.NotifyTerritoryChanged();
+        Filter.ClearTransitionTracking();
         Api.OnLogout();
     }
 
@@ -322,6 +325,17 @@ public class Plugin : IDalamudPlugin
         Services.PluginLog.Info("SoundMixer: PlaySound hook disabled by default (enable via Debug → manual hook control)");
     }
 
+    private void MigrateRemoveSafeModeSetting()
+    {
+        if (Config.Version >= 8)
+        {
+            return;
+        }
+
+        Config.Version = 8;
+        Config.Save();
+    }
+
     private void MigrateVolumeAboveEngineCap()
     {
         var changed = false;
@@ -370,10 +384,23 @@ public class Plugin : IDalamudPlugin
     {
         MountTransitionGuard.Update();
         Filter.ApplyMountSafeHookState();
+
+        if (ZoneTransitionGuard.ShouldSkipSoundDataMaintenance())
+        {
+            return;
+        }
+
         Filter.ProcessOneShotVolumeApplies();
         Filter.EnforceTrackedVolumes();
         SoundBlacklist.PruneInactivePointers();
         OneShotPlayRegistry.Prune();
+    }
+
+    private void OnTerritoryChanged(uint territoryId)
+    {
+        ZoneTransitionGuard.NotifyTerritoryChanged();
+        Filter.ClearTransitionTracking();
+        Services.PluginLog.Debug($"SoundMixer: territory changed ({territoryId}); cleared audio tracking during transition");
     }
 
     private void ApplyDefaultConfiguration()
@@ -550,6 +577,7 @@ public class Plugin : IDalamudPlugin
         Configuration.OnSaved = null;
 
         Services.ClientState.Logout -= OnLogout;
+        Services.ClientState.TerritoryChanged -= OnTerritoryChanged;
         Services.Framework.Update -= OnFrameworkUpdate;
 
         if (UI != null)

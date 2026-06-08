@@ -36,8 +36,6 @@ internal static class Loc
         internal const string BtnClearCacheTip = "Btn.ClearCache.Tip";
         internal const string ExpertMode = "ExpertMode";
         internal const string ExpertModeTip = "ExpertMode.Tip";
-        internal const string SafeMode = "SafeMode";
-        internal const string SafeModeTip = "SafeMode.Tip";
         internal const string Monitoring = "Monitoring";
         internal const string MonitoringTip = "Monitoring.Tip";
         internal const string TrackedScd = "TrackedScd";

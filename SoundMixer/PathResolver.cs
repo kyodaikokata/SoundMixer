@@ -42,6 +42,26 @@ internal static class PathResolver
         return $"{scdPath.ToLowerInvariant().Trim()}/{soundIndex}";
     }
 
+    internal static string GetScdBasePath(string path)
+    {
+        path = path.ToLowerInvariant().Trim();
+        return TrySplitSoundIndex(path, out var scdPath, out _) ? scdPath : path;
+    }
+
+    internal static bool ShareScdFile(string pathA, string pathB)
+    {
+        if (string.IsNullOrWhiteSpace(pathA) || string.IsNullOrWhiteSpace(pathB))
+        {
+            return false;
+        }
+
+        return string.Equals(
+            GetScdBasePath(pathA),
+            GetScdBasePath(pathB),
+            StringComparison.Ordinal
+        );
+    }
+
     internal static bool TrySplitSoundIndex(string path, out string scdPath, out int index)
     {
         scdPath = path;

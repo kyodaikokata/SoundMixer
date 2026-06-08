@@ -378,20 +378,6 @@ public partial class MainWindow : Window
         }
 
         ImGui.SameLine();
-        var safeMode = Plugin.Config.SafeMode;
-        if (ImGui.Checkbox(L(SafeMode), ref safeMode))
-        {
-            Plugin.Config.SafeMode = safeMode;
-            Plugin.Config.Save();
-            Plugin.ApplyEffectiveHookState();
-        }
-
-        if (ImGui.IsItemHovered())
-        {
-            ImGui.SetTooltip(L(SafeModeTip));
-        }
-
-        ImGui.SameLine();
         ImGui.TextDisabled($"v{PluginVersion.Display}");
         ImGui.SameLine();
         var monitoring = Plugin.Config.EnableMonitoring;
@@ -1560,7 +1546,7 @@ public partial class MainWindow : Window
 
         if (Plugin.Config.Enabled)
         {
-            Plugin.Filter.RefreshGroupSounds(group.Id);
+            RefreshGroupVolumeChain(group.Id);
         }
     }
 
@@ -1573,7 +1559,23 @@ public partial class MainWindow : Window
 
         if (Plugin.Config.Enabled)
         {
-            Plugin.Filter.RefreshGroupSounds(group.Id);
+            RefreshGroupVolumeChain(group.Id);
+        }
+    }
+
+    /// <summary>
+    /// Refresh the edited group and its ancestors so nested glob rules (e.g. foot/foot/fs_wood**)
+    /// pick up live volume changes on already-tracked sounds.
+    /// </summary>
+    private void RefreshGroupVolumeChain(string groupId)
+    {
+        var currentId = groupId;
+        var visited = new HashSet<string>(StringComparer.Ordinal);
+
+        while (!string.IsNullOrWhiteSpace(currentId) && visited.Add(currentId))
+        {
+            Plugin.Filter.RefreshGroupSounds(currentId);
+            currentId = GroupHierarchy.FindById(Plugin.Config, currentId)?.ParentId;
         }
     }
 
