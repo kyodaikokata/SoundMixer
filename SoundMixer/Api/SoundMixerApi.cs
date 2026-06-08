@@ -23,14 +23,23 @@ internal sealed class SoundMixerApi
 
     internal void RefreshEffectiveState(bool notify = true, string? reason = null)
     {
-        _effectiveState.Rebuild(_plugin.Config, _temporaryOverrides);
-        _plugin.VolumeCalculator.SetEffectiveSnapshot(_effectiveState.Snapshot);
+        ApplyLiveEffectiveState();
         _plugin.ApplyEffectiveHookState();
 
         if (notify)
         {
             StateChanged?.Invoke(reason ?? "state");
         }
+    }
+
+    /// <summary>
+    /// Rebuild runtime volume snapshot from in-memory config without writing disk or touching hooks.
+    /// Used while dragging volume sliders for live preview.
+    /// </summary>
+    internal void ApplyLiveEffectiveState()
+    {
+        _effectiveState.Rebuild(_plugin.Config, _temporaryOverrides);
+        _plugin.VolumeCalculator.SetEffectiveSnapshot(_effectiveState.Snapshot);
     }
 
     internal int GetApiVersion() => SoundMixerIpcGates.ApiVersion;
@@ -96,13 +105,7 @@ internal sealed class SoundMixerApi
         }
 
         PresetManager.SwitchPreset(_plugin.Config, preset.Id, _plugin.Filter);
-        _plugin.VolumeCalculator.ClearCache();
-        if (_plugin.IsEffectivelyEnabled)
-        {
-            _plugin.Filter.RefreshAllActiveSounds();
-        }
-
-        RefreshEffectiveState(reason: "switch-preset");
+        _plugin.ApplyPresetRuntimeState();
         return SoundMixerApiEc.Success;
     }
 
@@ -119,7 +122,7 @@ internal sealed class SoundMixerApi
         _plugin.Config.Save();
         _plugin.Config.InvalidateGlobCache();
         _plugin.VolumeCalculator.ClearCache();
-        if (_plugin.IsEffectivelyEnabled)
+        if (_plugin.IsEffectivelyEnabled && _plugin.Filter.CanSafelyRefreshActiveSounds())
         {
             _plugin.Filter.RefreshGroupSounds(group.Id);
         }

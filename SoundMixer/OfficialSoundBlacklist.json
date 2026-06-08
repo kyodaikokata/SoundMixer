@@ -1,22 +1,44 @@
-{
-  "revision": 4,
-  "updated": "2026-06-08",
-  "entries": [
-    {
-      "kind": "keyword",
-      "match": "se_bt_etc_mount_guideroid",
-      "notes": {
-        "zh": "外勤机骑乘时循环音会长期占用活跃 SoundData 链表节点；插件扫描或改写这些节点可能与原生音频引擎竞态，导致游戏崩溃。",
-        "en": "Guideroid mount loop sounds hold long-lived nodes on the active SoundData list; scanning or modifying them can race the native audio engine and crash the game."
-      }
-    },
-    {
-      "kind": "glob",
-      "match": "**/guideroid**",
-      "notes": {
-        "zh": "外勤机相关音效路径兜底（同上：不宜扫描活跃 SoundData 节点）",
-        "en": "Catch-all for other Guideroid SCD paths (same ActiveSoundData scan risk)"
-      }
-    }
-  ]
-}
+{
+
+  "revision": 4,
+
+  "updated": "2026-06-08",
+
+  "entries": [
+
+    {
+
+      "kind": "keyword",
+
+      "match": "se_bt_etc_mount_guideroid",
+
+      "notes": {
+
+        "zh": "外勤机骑乘时循环音会长期占用活跃 SoundData 链表节点；插件扫描或改写这些节点可能与原生音频引擎竞态，导致游戏崩溃。",
+
+        "en": "Guideroid mount loop sounds hold long-lived nodes on the active SoundData list; scanning or modifying them can race the native audio engine and crash the game."
+
+      }
+
+    },
+
+    {
+
+      "kind": "glob",
+
+      "match": "**/guideroid**",
+
+      "notes": {
+
+        "zh": "外勤机相关音效路径兜底（同上：不宜扫描活跃 SoundData 节点）",
+
+        "en": "Catch-all for other Guideroid SCD paths (same ActiveSoundData scan risk)"
+
+      }
+
+    }
+
+  ]
+
+}
+

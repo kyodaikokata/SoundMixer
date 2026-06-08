@@ -7,6 +7,8 @@ internal static class DefaultGroupLocalization
 {
     private const string DefaultPresetId = "2fecadaf-c027-4586-9385-2ed1d307855a";
 
+    private const string WeaponSkillGroupId = "c725104f-2983-48bf-b3aa-4be5d9b9204c";
+
     private static readonly (string GroupId, string LocKey)[] GroupMappings =
     [
         ("f3707363-c966-4a3d-b90d-d941a73bcba0", DefaultGroupBattleRoot),
@@ -40,6 +42,13 @@ internal static class DefaultGroupLocalization
             }
         }
 
+        var weaponSkillNote = Loc.Get(DefaultGroupWeaponSkillDesc);
+        UpdateGroupDescription(config.Groups, WeaponSkillGroupId, weaponSkillNote);
+        foreach (var preset in config.Presets)
+        {
+            UpdateGroupDescription(preset.Groups, WeaponSkillGroupId, weaponSkillNote);
+        }
+
         var defaultPreset = config.Presets.Find(p => p.Id == DefaultPresetId);
         if (defaultPreset != null)
         {
@@ -53,6 +62,15 @@ internal static class DefaultGroupLocalization
         if (group != null)
         {
             group.Name = name;
+        }
+    }
+
+    private static void UpdateGroupDescription(List<SoundGroup> groups, string groupId, string description)
+    {
+        var group = groups.Find(g => g.Id == groupId);
+        if (group != null)
+        {
+            group.Description = description;
         }
     }
 }

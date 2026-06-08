@@ -132,6 +132,11 @@ internal static unsafe class SoundVolumeHelper
             return string.Empty;
         }
 
+        if (SoundBlacklist.ShouldBypassSoundData(soundData))
+        {
+            return string.Empty;
+        }
+
         try
         {
             var handle = soundData->SoundResourceHandle;
@@ -143,13 +148,32 @@ internal static unsafe class SoundVolumeHelper
                     return name.ToLowerInvariant();
                 }
             }
-
-            return ((ISoundData*)soundData)->GetFileName().ToString().ToLowerInvariant();
         }
         catch (Exception ex)
         {
-            Services.PluginLog.Verbose(ex, "SoundMixer: failed to read path from SoundData");
-            return string.Empty;
+            Services.PluginLog.Verbose(ex, "SoundMixer: failed to read safe path from SoundData handle");
+        }
+
+        return string.Empty;
+    }
+
+    internal static bool TryGetUnsafeFileName(SoundData* soundData, out string path)
+    {
+        path = string.Empty;
+        if (soundData == null || !SoundDataSafety.IsReadable((nint)soundData))
+        {
+            return false;
+        }
+
+        try
+        {
+            path = ((ISoundData*)soundData)->GetFileName().ToString().ToLowerInvariant();
+            return !string.IsNullOrWhiteSpace(path);
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Verbose(ex, "SoundMixer: GetFileName fallback failed");
+            return false;
         }
     }
 

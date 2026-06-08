@@ -8,6 +8,8 @@ namespace SoundMixer;
 
 public class VolumeCalculator
 {
+    internal const string BuiltinUiGroupId = "a8a8dba3-a7ed-4d79-b85a-e3f600e23b59";
+
     private Configuration Config { get; }
     private Dictionary<string, float> VolumeCache { get; } = new();
     private EffectiveSnapshot? _effectiveSnapshot;
@@ -108,6 +110,77 @@ public class VolumeCalculator
         return false;
     }
 
+    /// <summary>
+    /// Short pooled SFX (UI/menu clicks). Volume is scaled only at play-hook entry; never via SetVolume/GetVolume tracking.
+    /// </summary>
+    public bool IsLikelyOneShotPath(string soundPath)
+    {
+        if (string.IsNullOrWhiteSpace(soundPath) || StreamingBgmTracker.IsBgmOrMusicPath(soundPath))
+        {
+            return false;
+        }
+
+        soundPath = soundPath.ToLowerInvariant();
+        var resolved = ResolveScdPath(soundPath);
+
+        if (SoundBelongsToGroupTree(soundPath, BuiltinUiGroupId)
+            || (resolved != soundPath && SoundBelongsToGroupTree(resolved, BuiltinUiGroupId)))
+        {
+            return true;
+        }
+
+        foreach (var group in Groups)
+        {
+            if (!IsUiLikeGroup(group))
+            {
+                continue;
+            }
+
+            if (SoundBelongsToGroupTree(soundPath, group.Id)
+                || (resolved != soundPath && SoundBelongsToGroupTree(resolved, group.Id)))
+            {
+                return true;
+            }
+        }
+
+        return soundPath.Contains("/ui/", StringComparison.Ordinal)
+            || soundPath.Contains("/menu/", StringComparison.Ordinal)
+            || soundPath.Contains("se_ui", StringComparison.Ordinal)
+            || soundPath.Contains("se_ui.scd", StringComparison.Ordinal)
+            || soundPath.Contains("system/se_ui", StringComparison.Ordinal);
+    }
+
+    internal bool IsUiGroup(string groupId)
+    {
+        if (string.IsNullOrWhiteSpace(groupId))
+        {
+            return false;
+        }
+
+        if (groupId == BuiltinUiGroupId)
+        {
+            return true;
+        }
+
+        var group = Groups.FirstOrDefault(g => g.Id == groupId);
+        return group != null && IsUiLikeGroup(group);
+    }
+
+    private static bool IsUiLikeGroup(SoundGroup group)
+    {
+        if (group.PathPatterns.Count == 0)
+        {
+            return false;
+        }
+
+        return group.PathPatterns.All(pattern =>
+        {
+            var normalized = pattern.ToLowerInvariant();
+            return normalized.Contains("ui", StringComparison.Ordinal)
+                || normalized.Contains("menu", StringComparison.Ordinal);
+        });
+    }
+
     public bool SoundBelongsToGroupTree(string soundPath, string groupId)
     {
         var resolvedGroupId = ResolveGroupId(soundPath);
@@ -126,16 +199,23 @@ public class VolumeCalculator
 
     private static bool IsDescendantGroup(Configuration config, string childGroupId, string ancestorGroupId)
     {
-        var groups = config.Groups;
-        var current = groups.FirstOrDefault(g => g.Id == childGroupId);
-        while (current?.ParentId != null)
+        var visited = new HashSet<string>();
+        var current = config.Groups.FirstOrDefault(g => g.Id == childGroupId);
+        var depth = 0;
+
+        while (current?.ParentId != null && depth++ < 64)
         {
+            if (!visited.Add(current.Id))
+            {
+                return false;
+            }
+
             if (current.ParentId == ancestorGroupId)
             {
                 return true;
             }
 
-            current = groups.FirstOrDefault(g => g.Id == current.ParentId);
+            current = config.Groups.FirstOrDefault(g => g.Id == current.ParentId);
         }
 
         return false;
@@ -287,9 +367,16 @@ public class VolumeCalculator
     private int GetGroupDepth(string groupId)
     {
         var depth = 0;
+        var visited = new HashSet<string>();
         var current = Groups.FirstOrDefault(g => g.Id == groupId);
-        while (current?.ParentId != null)
+
+        while (current?.ParentId != null && depth < 64)
         {
+            if (!visited.Add(current.Id))
+            {
+                break;
+            }
+
             depth++;
             current = Groups.FirstOrDefault(g => g.Id == current.ParentId);
         }

@@ -43,20 +43,39 @@ internal sealed class EffectiveRuntimeState
 
     private static EffectiveSnapshot BuildSnapshot(Configuration config, SoundPreset? preset, bool enabled)
     {
-        if (preset != null)
+        if (preset == null)
+        {
+            return BuildSnapshotFromConfig(config, enabled);
+        }
+
+        if (preset.Id == config.ActivePresetId)
         {
             return new EffectiveSnapshot
             {
                 Enabled = enabled,
                 ActivePresetId = preset.Id,
                 ActivePresetName = preset.Name,
-                Groups = preset.Groups.Select(CloneGroup).ToList(),
-                SoundToGroup = new Dictionary<string, string>(preset.SoundToGroup),
-                IndividualVolumes = new Dictionary<string, float>(preset.IndividualVolumes),
-                PathAliases = new Dictionary<string, string>(preset.PathAliases),
+                Groups = config.Groups.Select(CloneGroup).ToList(),
+                SoundToGroup = new Dictionary<string, string>(config.SoundToGroup),
+                IndividualVolumes = new Dictionary<string, float>(config.IndividualVolumes),
+                PathAliases = new Dictionary<string, string>(config.PathAliases),
             };
         }
 
+        return new EffectiveSnapshot
+        {
+            Enabled = enabled,
+            ActivePresetId = preset.Id,
+            ActivePresetName = preset.Name,
+            Groups = preset.Groups.Select(CloneGroup).ToList(),
+            SoundToGroup = new Dictionary<string, string>(preset.SoundToGroup),
+            IndividualVolumes = new Dictionary<string, float>(preset.IndividualVolumes),
+            PathAliases = new Dictionary<string, string>(preset.PathAliases),
+        };
+    }
+
+    private static EffectiveSnapshot BuildSnapshotFromConfig(Configuration config, bool enabled)
+    {
         return new EffectiveSnapshot
         {
             Enabled = enabled,

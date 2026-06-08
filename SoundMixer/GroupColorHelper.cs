@@ -61,7 +61,13 @@ internal static class GroupColorHelper
         return TryGetDisplayColor(config, group, out color);
     }
 
-    /// <summary>Sets OverrideColorArgb from the immediate parent's LabelColorArgb (color field).</summary>
+    /// <summary>Root groups use LabelColorArgb; nested groups use OverrideColorArgb.</summary>
+    internal static uint GetActiveColorArgb(SoundGroup group)
+    {
+        return IsRootGroup(group) ? group.LabelColorArgb : group.OverrideColorArgb;
+    }
+
+    /// <summary>Sets OverrideColorArgb from the immediate parent's active display color.</summary>
     internal static void SyncOverrideColorFromParent(Configuration config, SoundGroup group)
     {
         if (string.IsNullOrWhiteSpace(group.ParentId))
@@ -75,7 +81,7 @@ internal static class GroupColorHelper
             return;
         }
 
-        group.OverrideColorArgb = parent.LabelColorArgb;
+        group.OverrideColorArgb = GetActiveColorArgb(parent);
     }
 
     internal static void InheritOverrideColorFromParent(Configuration config, SoundGroup group)

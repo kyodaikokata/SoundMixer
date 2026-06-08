@@ -9,7 +9,7 @@ namespace SoundMixer;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 6;
+    public int Version { get; set; } = 7;
 
     public bool Enabled { get; set; } = true;
     public bool ExpertMode { get; set; } = false;
@@ -17,9 +17,12 @@ public class Configuration : IPluginConfiguration
     /// <summary>
     /// When enabled, suspend audio hooks while mounted / during mount transitions (legacy 0.2.1.6 guard).
     /// </summary>
-    public bool SafeMode { get; set; } = false;
+    public bool SafeMode { get; set; } = true;
 
     public bool EnableMonitoring { get; set; } = true;
+
+    /// <summary>Per-hook manual enable/disable for CTD tracing (Debug tab).</summary>
+    public HookDebugSettings HookDebug { get; set; } = new();
     public const int MonitoringHistorySize = 100;
     public const int MonitoringDisplayCount = 20;
     public bool ShowRecentSounds { get; set; } = true;
@@ -27,6 +30,8 @@ public class Configuration : IPluginConfiguration
     public bool IpcOverridesPanelExpanded { get; set; } = true;
     public bool HideMatchedMonitoringLogs { get; set; } = false;
     public string MonitoringHideKeywords { get; set; } = "";
+    /// <summary>When non-empty, only show recent sounds intercepted by these hook ids.</summary>
+    public List<string> MonitoringHookFilter { get; set; } = new();
     public LanguageMode UiLanguage { get; set; } = LanguageMode.System;
 
     public float? MainWindowX { get; set; }
@@ -51,17 +56,33 @@ public class Configuration : IPluginConfiguration
     /// <summary>Last synced revision from OfficialSoundBlacklist.json on GitHub.</summary>
     public int OfficialBlacklistRevision { get; set; }
 
+    /// <summary>User-defined action guards (trigger → disabled hooks).</summary>
+    public List<UserHookGuardEntry> UserHookGuards { get; set; } = new();
+
+    /// <summary>Last synced revision from OfficialHookGuards.json on GitHub.</summary>
+    public int OfficialHookGuardsRevision { get; set; }
+
     [NonSerialized]
     private Dictionary<string, Glob>? _cachedGlobs;
 
     [NonSerialized]
     internal static Action? OnSaved;
 
-    public void Save()
+    public void Save(bool runSavedHandlers = true)
     {
-        PresetManager.SyncActivePreset(this);
-        Services.PluginInterface.SavePluginConfig(this);
-        OnSaved?.Invoke();
+        try
+        {
+            PresetManager.SyncActivePreset(this);
+            Services.PluginInterface.SavePluginConfig(this);
+            if (runSavedHandlers)
+            {
+                OnSaved?.Invoke();
+            }
+        }
+        catch (Exception ex)
+        {
+            Services.PluginLog.Warning(ex, "SoundMixer: failed to save plugin configuration");
+        }
     }
 
     public const float NormalMaxVolume = 2.0f;
@@ -107,6 +128,8 @@ public class SoundGroup
 {
     public string Id { get; set; } = Guid.NewGuid().ToString();
     public string Name { get; set; } = "New Group";
+    /// <summary>Optional note shown in group details (e.g. built-in glob explanations).</summary>
+    public string Description { get; set; } = string.Empty;
     public string? ParentId { get; set; }
     public float GroupVolume { get; set; } = 1.0f;
     public bool ApplyToChildren { get; set; } = true;
@@ -134,6 +157,9 @@ public class SoundInfo
     public float Volume { get; set; } = 1.0f;
     public int PlayCount { get; set; }
     public DateTime LastPlayed { get; set; }
+    public bool IsPathResolutionFailure { get; set; }
+    public string FailureDetail { get; set; } = "";
+    public string HookSourceId { get; set; } = "";
 
-    public string FullPath => $"{Path}/{Index}";
+    public string FullPath => IsPathResolutionFailure ? FailureDetail : $"{Path}/{Index}";
 }

@@ -13,6 +13,7 @@ internal static unsafe class SoundBlacklist
 
     private static List<CompiledBlacklistRule> s_userRules = new();
     private static List<CompiledBlacklistRule> s_officialRules = new();
+    private static List<CompiledBlacklistRule> s_mountLoopRules = new();
     private static int s_officialRevision;
 
     internal static int OfficialRevision => s_officialRevision;
@@ -36,13 +37,55 @@ internal static unsafe class SoundBlacklist
         s_officialRules = CompileRules(
             OfficialEntries.Select(e => (ParseOfficialKind(e.Kind), e.Match))
         );
+        s_mountLoopRules = s_userRules
+            .Where(IsMountLoopRule)
+            .Concat(s_officialRules.Where(IsMountLoopRule))
+            .ToList();
 
         BlockedPointers.Clear();
+    }
+
+    /// <summary>BGM/ride BGM may match **/guideroid** but must remain volume-controllable.</summary>
+    internal static bool IsExcludedFromMountLoopBlacklist(string? path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return false;
+        }
+
+        var normalized = path.ToLowerInvariant();
+        return StreamingBgmTracker.IsBgmOrMusicPath(normalized)
+            || MountTransitionGuard.IsRideBgmPath(normalized);
+    }
+
+    internal static bool IsMountLoopBlockedPath(string? path)
+    {
+        if (IsExcludedFromMountLoopBlacklist(path))
+        {
+            return false;
+        }
+
+        return IsPathBlockedByRules(path, s_mountLoopRules);
+    }
+
+    internal static bool IsPlayHookBlockedPath(string? path)
+    {
+        if (IsExcludedFromMountLoopBlacklist(path))
+        {
+            return false;
+        }
+
+        return IsPathBlocked(path);
     }
 
     internal static bool IsPathBlocked(string? path)
     {
         return IsPathBlockedByRules(path, s_userRules) || IsPathBlockedByRules(path, s_officialRules);
+    }
+
+    internal static bool HasMountLoopBlockRules()
+    {
+        return s_mountLoopRules.Count > 0;
     }
 
     internal static bool IsPointerBlocked(SoundData* soundData)
@@ -57,23 +100,41 @@ internal static unsafe class SoundBlacklist
             return true;
         }
 
-        if (IsPointerBlocked(soundData))
-        {
-            return true;
-        }
+        // Never call GetFileName / TryGetPathFromSoundData here — that can crash on mount
+        // loop nodes (e.g. Guideroid). Path-based blocking is resolved at play time via
+        // RegisterPointerForPath; this cache is the only safe active-list bypass signal.
+        return IsPointerBlocked(soundData);
+    }
 
-        if (!SoundVolumeHelper.TryGetPathFromSoundData(soundData, out var path))
+    internal static void RegisterBlockedPlayResult(SoundData* soundData, string? path)
+    {
+        RegisterPointerForPath(soundData, path);
+        if (IsMountLoopBlockedPath(path))
         {
-            return false;
+            MountTransitionGuard.NotifyGuideroidLoopSound(path);
         }
+    }
 
-        if (!IsPathBlocked(path))
+    [ThreadStatic]
+    private static int s_playBypassDepth;
+
+    internal static bool IsPlayBypassActive => s_playBypassDepth > 0;
+
+    internal static PlayBypassScope EnterPlayBypass()
+    {
+        s_playBypassDepth++;
+        return new PlayBypassScope();
+    }
+
+    internal readonly struct PlayBypassScope : IDisposable
+    {
+        public void Dispose()
         {
-            return false;
+            if (s_playBypassDepth > 0)
+            {
+                s_playBypassDepth--;
+            }
         }
-
-        RegisterPointer(soundData);
-        return true;
     }
 
     internal static void RegisterPointer(SoundData* soundData)
@@ -299,5 +360,23 @@ internal static unsafe class SoundBlacklist
         return pattern.Contains('*', StringComparison.Ordinal)
             || pattern.Contains('?', StringComparison.Ordinal)
             || pattern.Contains('[', StringComparison.Ordinal);
+    }
+
+    private static bool IsMountLoopRule(CompiledBlacklistRule rule)
+    {
+        if (rule.Kind == SoundBlacklistMatchKind.Keyword
+            && (rule.Match.Contains("guideroid", StringComparison.Ordinal)
+                || rule.Match.Contains("se_bt_etc_mount_guideroid", StringComparison.Ordinal)))
+        {
+            return true;
+        }
+
+        if (rule.Kind == SoundBlacklistMatchKind.Glob
+            && rule.Match.Contains("guideroid", StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -12,9 +12,9 @@
         <Use_Dalamud_CN Condition="'$(Use_Dalamud_CN)' == ''">true</Use_Dalamud_CN>
         <DalamudApiLevel>15</DalamudApiLevel>
 
-        <Version>0.2.2.1</Version>
-        <AssemblyVersion>0.2.2.1</AssemblyVersion>
-        <FileVersion>0.2.2.1</FileVersion>
+        <Version>0.2.3.0</Version>
+        <AssemblyVersion>0.2.3.0</AssemblyVersion>
+        <FileVersion>0.2.3.0</FileVersion>
 
         <Author>KKT</Author>
         <Name>SoundMixer</Name>
@@ -24,7 +24,7 @@
         <Tags>sound;audio;volume;mixer;sfx;customization</Tags>
         <CategoryTags>utility;sound</CategoryTags>
         <IconUrl>https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png</IconUrl>
-        <Changelog>0.2.2.1: Fix official blacklist JSON load (embedded + remote). 0.2.2.0: Safe Mode. Blacklist manual fetch.</Changelog>
+        <Changelog>0.2.3.0: PlaySound disabled by default (confirmed CTD). UI one-shot volume fix, Clear Cache, Guideroid/BGM mount mixing, group tree UX.</Changelog>
         <ManifestType>json</ManifestType>
         <AcceptsFeedback>true</AcceptsFeedback>
         <FeedbackMessage>Please include steps to reproduce and the sound path if reporting a matching issue.</FeedbackMessage>
@@ -45,12 +45,23 @@
     <ItemGroup>
         <EmbeddedResource Include="DefaultConfiguration.json" />
         <EmbeddedResource Include="OfficialSoundBlacklist.json" />
+        <EmbeddedResource Include="OfficialHookGuards.json" />
         <None Include="SoundMixer.json">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </None>
     </ItemGroup>
 
     <Import Project="DalamudPackager.targets" Condition="Exists('DalamudPackager.targets')" />
+
+    <!-- DalamudPackager is disabled (custom zip). Keep SoundMixer.json AssemblyVersion in sync with $(Version). -->
+    <Target Name="SyncPluginManifestVersion" BeforeTargets="BeforeBuild">
+        <PropertyGroup>
+            <_ManifestSource>$(MSBuildProjectDirectory)\$(AssemblyName).json</_ManifestSource>
+            <_SyncScript>$(MSBuildProjectDirectory)\SyncPluginManifest.ps1</_SyncScript>
+        </PropertyGroup>
+        <Exec Condition="Exists('$(_ManifestSource)') AND Exists('$(_SyncScript)')"
+              Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(_SyncScript)&quot; -ManifestPath &quot;$(_ManifestSource)&quot; -Version &quot;$(Version)&quot;" />
+    </Target>
 
     <Target Name="CleanStalePublishArtifacts" BeforeTargets="CoreBuild" Condition="'$(Configuration)' == 'Release'">
         <RemoveDir Directories="$(TargetDir)net10.0-windows" Condition="Exists('$(TargetDir)net10.0-windows')" />
@@ -93,7 +104,7 @@
         <Delete Files="$(_ZipPath)" Condition="Exists('$(_ZipPath)')" />
         <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;Compress-Archive -LiteralPath '$(_ZipStaging)$(AssemblyName).dll','$(_ZipStaging)DotNet.Glob.dll','$(_ZipStaging)$(AssemblyName).pdb','$(_ZipStaging)$(AssemblyName).json' -DestinationPath '$(_ZipPath)' -Force&quot;" />
 
-        <Copy SourceFiles="$(_ManifestPath)" DestinationFiles="$(_PublishDir)$(AssemblyName).json" SkipUnchangedFiles="true" Condition="Exists('$(_ManifestPath)')" />
+        <Copy SourceFiles="$(_ManifestPath)" DestinationFiles="$(_PublishDir)$(AssemblyName).json" Condition="Exists('$(_ManifestPath)')" />
     </Target>
 
 </Project>

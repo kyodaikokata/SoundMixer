@@ -32,6 +32,19 @@ public class Plugin : IDalamudPlugin
         pluginInterface.Create<Services>();
 
         Config = Services.PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        if (GroupHierarchy.RepairConfiguration(Config))
+        {
+            Services.PluginLog.Warning("SoundMixer: repaired corrupted group hierarchy in saved configuration");
+            try
+            {
+                Config.Save();
+            }
+            catch (Exception ex)
+            {
+                Services.PluginLog.Error(ex, "SoundMixer: failed to save repaired configuration");
+            }
+        }
+
         Loc.Bind(Config);
 
         VolumeCalculator = new VolumeCalculator(Config);
@@ -59,21 +72,27 @@ public class Plugin : IDalamudPlugin
 
         ApplyDefaultConfiguration();
         MigrateClearGroupIcons();
-        MigrateBuiltinSoundGroups();
+        MigrateLegacyBuiltinSoundGroupsOnce();
         MigrateVolumeAboveEngineCap();
         MigrateSoundBlacklistEntries();
+        MigratePlaySoundDisabledByDefault();
         PresetManager.Initialize(Config);
         DefaultGroupLocalization.Apply(Config);
 
         OfficialBlacklistSync.Initialize(this);
+        OfficialHookGuardsSync.Initialize(this);
 
         Api = new SoundMixerApi(this);
         Configuration.OnSaved = () =>
         {
             OfficialBlacklistSync.RebuildFromConfig(Config);
-            Api.RefreshEffectiveState(notify: false);
+            OfficialHookGuardsSync.RebuildFromConfig(Config);
+            ApplyHookGuardState();
+            Api.ApplyLiveEffectiveState();
         };
         _ipcProviders = new SoundMixerIpcProviders(Services.PluginInterface, Api);
+
+        DisableDebugManualHookControl(reapplyHooks: false);
 
         Services.ClientState.Logout += OnLogout;
     }
@@ -81,6 +100,17 @@ public class Plugin : IDalamudPlugin
     internal void RebuildSoundBlacklist()
     {
         OfficialBlacklistSync.RebuildFromConfig(Config);
+    }
+
+    internal void RebuildHookGuards()
+    {
+        OfficialHookGuardsSync.RebuildFromConfig(Config);
+        ApplyHookGuardState();
+    }
+
+    internal void ApplyHookGuardState()
+    {
+        Filter.ApplyMountSafeHookState();
     }
 
     internal bool AddUserBlacklistEntry(SoundBlacklistMatchKind kind, string match, string note)
@@ -106,6 +136,46 @@ public class Plugin : IDalamudPlugin
         Config.Save();
     }
 
+    internal bool AddUserHookGuardEntry(
+        HookGuardTrigger trigger,
+        IReadOnlyList<HookDebugId> disabledHooks,
+        bool skipActiveListScan,
+        string note
+    )
+    {
+        if (!HookGuardPolicy.TryAddUserEntry(Config, trigger, disabledHooks, skipActiveListScan, note))
+        {
+            return false;
+        }
+
+        Config.Save();
+        return true;
+    }
+
+    internal void RemoveUserHookGuardEntry(string entryId)
+    {
+        var entry = Config.UserHookGuards.Find(e => e.Id == entryId);
+        if (entry == null)
+        {
+            return;
+        }
+
+        Config.UserHookGuards.Remove(entry);
+        Config.Save();
+    }
+
+    internal void SetUserHookGuardEnabled(string entryId, bool enabled)
+    {
+        var entry = Config.UserHookGuards.Find(e => e.Id == entryId);
+        if (entry == null || entry.Enabled == enabled)
+        {
+            return;
+        }
+
+        entry.Enabled = enabled;
+        Config.Save();
+    }
+
     internal void SetSavedEnabled(bool enabled, bool refreshSounds = true)
     {
         if (Config.Enabled == enabled)
@@ -114,12 +184,37 @@ public class Plugin : IDalamudPlugin
             return;
         }
 
+        if (!enabled)
+        {
+            DisableDebugManualHookControl(reapplyHooks: false);
+        }
+
         Config.Enabled = enabled;
         Config.Save();
+        ApplyEffectiveHookState();
 
         // Do not RefreshAllActiveSounds on enable — probing every active node (incl. mount
         // loops such as Guideroid) can native-crash. Hooks apply rules as the game touches sounds.
         _ = refreshSounds;
+    }
+
+    internal void DisableDebugManualHookControl(bool reapplyHooks = true)
+    {
+        if (!Config.HookDebug.ManualControl)
+        {
+            return;
+        }
+
+        Config.HookDebug.ManualControl = false;
+        Config.Save();
+
+        if (!reapplyHooks)
+        {
+            return;
+        }
+
+        Filter.ApplyHookDebugSettings();
+        ApplyHookGuardState();
     }
 
     internal void ApplyEffectiveHookState()
@@ -131,10 +226,38 @@ public class Plugin : IDalamudPlugin
         }
         else
         {
+            DisableDebugManualHookControl(reapplyHooks: false);
             Filter.Disable();
         }
 
         Filter.ApplyMountSafeHookState();
+    }
+
+    internal bool SwitchActivePreset(string presetId)
+    {
+        if (PresetManager.FindPreset(Config, presetId) == null)
+        {
+            return false;
+        }
+
+        if (presetId != Config.ActivePresetId)
+        {
+            PresetManager.SwitchPreset(Config, presetId, Filter);
+        }
+
+        ApplyPresetRuntimeState();
+        return true;
+    }
+
+    internal void ApplyPresetRuntimeState()
+    {
+        SoundVolumeTracker.Clear();
+        StreamingBgmTracker.Clear();
+        Api.RefreshEffectiveState(notify: false);
+        if (IsEffectivelyEnabled && Filter.CanSafelyRefreshActiveSounds())
+        {
+            Filter.RefreshAllActiveSounds();
+        }
     }
 
     internal string ResolveSoundPath(string rawPath, nint scdDataPtr = 0)
@@ -145,6 +268,7 @@ public class Plugin : IDalamudPlugin
 
     private void OnLogout(int type, int code)
     {
+        MountTransitionGuard.ClearGuideroidSession();
         SoundBlacklist.ClearPointerCache();
         Api.OnLogout();
     }
@@ -179,6 +303,23 @@ public class Plugin : IDalamudPlugin
         Config.CustomSoundBlacklist.Clear();
         Config.Version = 6;
         Config.Save();
+    }
+
+    private void MigratePlaySoundDisabledByDefault()
+    {
+        if (Config.Version >= 7)
+        {
+            return;
+        }
+
+        if (!Config.HookDebug.ManualControl)
+        {
+            Config.HookDebug.PlaySound = false;
+        }
+
+        Config.Version = 7;
+        Config.Save();
+        Services.PluginLog.Info("SoundMixer: PlaySound hook disabled by default (enable via Debug → manual hook control)");
     }
 
     private void MigrateVolumeAboveEngineCap()
@@ -229,8 +370,10 @@ public class Plugin : IDalamudPlugin
     {
         MountTransitionGuard.Update();
         Filter.ApplyMountSafeHookState();
+        Filter.ProcessOneShotVolumeApplies();
         Filter.EnforceTrackedVolumes();
         SoundBlacklist.PruneInactivePointers();
+        OneShotPlayRegistry.Prune();
     }
 
     private void ApplyDefaultConfiguration()
@@ -271,13 +414,22 @@ public class Plugin : IDalamudPlugin
         }
     }
 
-    private void MigrateBuiltinSoundGroups()
+    /// <summary>
+    /// One-time legacy migration for configs older than v4. Built-in group patterns are not
+    /// patched on later startups — defaults come only from embedded config on first install.
+    /// </summary>
+    private void MigrateLegacyBuiltinSoundGroupsOnce()
     {
         if (Config.Version >= 4)
         {
             return;
         }
 
+        MigrateBuiltinSoundGroupsToVersion4();
+    }
+
+    private void MigrateBuiltinSoundGroupsToVersion4()
+    {
         var changed = false;
 
         changed |= RemoveDuplicateBgmBuiltinGroups();
@@ -392,6 +544,7 @@ public class Plugin : IDalamudPlugin
 
     public void Dispose()
     {
+        DisableDebugManualHookControl(reapplyHooks: false);
         _ipcProviders?.NotifyDisposed(Services.PluginInterface);
         _ipcProviders?.Dispose();
         Configuration.OnSaved = null;

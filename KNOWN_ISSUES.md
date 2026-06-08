@@ -40,7 +40,8 @@
 | 能力 | 是否可用 |
 |------|----------|
 | 普通 SCD 音效路径混音（`PlaySpecificSound` + `SetVolume` / `GetVolume`） | ✅ 可用 |
-| 播放瞬间拦截（`PlaySound` 等 6 个 hook） | ❌ 不可用 |
+| 播放瞬间拦截（`PlaySystemSound` 等 5 个 hook） | ❌ 不可用（国服签名） |
+| `PlaySound` hook | ❌ **默认不加载**（0.2.3.0 起已确认会引发 CTD，见问题 5） |
 | BGM / 天气环境音「播放瞬间」注入音量 | ❌ 弱于预期 |
 | 正在播放音效的帧扫描监听与 `SetVolume` 强制 | ✅ 可用（见问题 2 的防护） |
 
@@ -159,9 +160,45 @@ Exception in event handler "IFramework::Update"
 - 骑乘 hook 挂起改为可选 **安全模式**（默认**关闭**；工具栏位于专家模式之后）。关闭时骑乘期仍应用音量规则。
 - 若在外勤机等坐骑上仍崩溃：开启安全模式，和/或依赖官方黑名单（`se_bt_etc_mount_guideroid` 等）。
 
+**0.2.3.0**
+
+- **PlaySound** 已确认 CTD 源：默认不加载签名与 hook；调试页手动开启，附危险说明。
+- 外勤机 grace（`OfficialHookGuards` rev3）：**仅**跳过活跃 `SoundData` 链表扫描，**不再**挂起 `SetVolume`/`GetVolume`。
+- 骑乘 BGM / ride BGM 路径豁免 mount-loop 黑名单，分组音量可作用于正在播放的 BGM。
+- UI 一次性音效（池化 `SoundData`）经 `OneShotPlayRegistry` 修复；工具栏 **清除缓存** 可恢复异常状态。
+
 ---
 
-## 4. 文档与早期 MVP 文案
+## 4. PlaySound hook 导致崩溃
+
+| 项目 | 内容 |
+|------|------|
+| **发现时间** | 2026-06-08 |
+| **发现版本** | SoundMixer **0.2.2.x** 及更早（调试页可手动启用时） |
+| **状态** | **已缓解**（**0.2.3.0** 起默认不加载；仅 CTD 溯源时手动开启，风险自负） |
+
+### 现象
+
+启用 **PlaySound** hook 后，特定场景（含外勤机骑乘）游戏崩溃；禁用该 hook 或整插件后不复现。
+
+### 原因
+
+`PlaySound` 与 `PlaySpecificSound` / `SetVolume` 链路叠加时，对坐骑循环、池化节点等 native 状态干扰过大；hook 本身在敏感时机进入 detour 即可触发 CTD。
+
+### 缓解（0.2.3.0）
+
+- 默认 **不解析、不安装** `PlaySound` hook（`Desired(..., autoDefault: false)`）。
+- 配置迁移 v7 强制关闭已保存的 `HookDebug.PlaySound`。
+- 调试 Tab 显示危险说明；「一键全开」仍保持 PlaySound 关闭。
+- 移除仅为 PlaySound CTD 叠代的冗余骑乘透传/守卫项；castlp 透传仅在手动启用 PlaySound 时生效。
+
+### 根治方向
+
+- 长期不默认启用 PlaySound；混音依赖 `PlaySpecificSound` + `SetVolume` + tracked enforcement（已覆盖绝大多数 SCD 音效）。
+
+---
+
+## 5. 文档与早期 MVP 文案
 
 `DESIGN.md` 中部分早期设计草案（如 FMOD 缓冲修改、500% 上限）**未反映当前实现**。以本文档、游戏内「更新日志」、`SoundMixer.json` / Catalog manifest 为准。
 
@@ -171,6 +208,7 @@ Exception in event handler "IFramework::Update"
 
 | 日期 | 版本 | 变更 |
 |------|------|------|
+| 2026-06-08 | 0.2.3.0 | PlaySound 默认禁用（CTD）；UI 音效/清除缓存；外勤机 grace 与骑乘 BGM；守卫 rev3 |
 | 2026-06-08 | 0.2.2.1 | 修复官方黑名单 JSON 反序列化（rev 0）；TryGetPathFromSoundData |
 | 2026-06-08 | 0.2.2.0 | 安全模式（骑乘 hook 可选）；默认骑乘期仍混音 |
 | 2026-06-08 | 0.2.1.8 | 黑名单独立 Tab；用户/官方分表；匹配类型+备注 |

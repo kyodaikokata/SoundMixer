@@ -12,6 +12,11 @@ internal static class Loc
         internal const string TabMain = "Tab.Main";
         internal const string TabChangelog = "Tab.Changelog";
         internal const string TabBlacklist = "Tab.Blacklist";
+        internal const string TabAdvancedSettings = "Tab.AdvancedSettings";
+        internal const string TabSoundBlacklist = "Tab.SoundBlacklist";
+        internal const string TabActionGuards = "Tab.ActionGuards";
+        internal const string TabDebug = "Tab.Debug";
+        internal const string AdvancedTabHint = "Advanced.TabHint";
 
         internal const string LangLabel = "Lang.Label";
         internal const string LangSystem = "Lang.System";
@@ -27,6 +32,8 @@ internal static class Loc
         internal const string BtnDisable = "Btn.Disable";
         internal const string BtnRefreshAll = "Btn.RefreshAll";
         internal const string BtnRefreshAllTip = "Btn.RefreshAll.Tip";
+        internal const string BtnClearCache = "Btn.ClearCache";
+        internal const string BtnClearCacheTip = "Btn.ClearCache.Tip";
         internal const string ExpertMode = "ExpertMode";
         internal const string ExpertModeTip = "ExpertMode.Tip";
         internal const string SafeMode = "SafeMode";
@@ -46,8 +53,52 @@ internal static class Loc
         internal const string MonitorHideKeywords = "Monitor.HideKeywords";
         internal const string MonitorHideKeywordsTip = "Monitor.HideKeywords.Tip";
         internal const string MonitorHint = "Monitor.Hint";
+        internal const string MonitorHookActiveScan = "Monitor.Hook.ActiveScan";
+        internal const string MonitorHookPathResolve = "Monitor.Hook.PathResolve";
+        internal const string MonitorHookFilter = "Monitor.HookFilter";
+        internal const string MonitorHookFilterTip = "Monitor.HookFilter.Tip";
+        internal const string MonitorHookFilterSelectAll = "Monitor.HookFilter.SelectAll";
+        internal const string MonitorHookFilterClear = "Monitor.HookFilter.Clear";
         internal const string MonitorEmpty = "Monitor.Empty";
         internal const string MonitorPlayingTag = "Monitor.PlayingTag";
+        internal const string MonitorPathResolveFailed = "Monitor.PathResolveFailed";
+        internal const string MonitorPathResolveFailedDetail = "Monitor.PathResolveFailed.Detail";
+
+        internal const string DebugTabHint = "Debug.TabHint";
+        internal const string DebugManualControl = "Debug.ManualControl";
+        internal const string DebugManualControlTip = "Debug.ManualControl.Tip";
+        internal const string DebugManualControlUnsafeTip = "Debug.ManualControl.UnsafeTip";
+        internal const string DebugHookAllOn = "Debug.Hook.AllOn";
+        internal const string DebugHookAllOff = "Debug.Hook.AllOff";
+        internal const string DebugHookApply = "Debug.Hook.Apply";
+        internal const string DebugHookColumnName = "Debug.Hook.Column.Name";
+        internal const string DebugHookColumnResolved = "Debug.Hook.Column.Resolved";
+        internal const string DebugHookColumnRuntime = "Debug.Hook.Column.Runtime";
+        internal const string DebugHookColumnDesired = "Debug.Hook.Column.Desired";
+        internal const string DebugHookResolvedYes = "Debug.Hook.Resolved.Yes";
+        internal const string DebugHookResolvedNo = "Debug.Hook.Resolved.No";
+        internal const string DebugHookRuntimeOn = "Debug.Hook.Runtime.On";
+        internal const string DebugHookRuntimeOff = "Debug.Hook.Runtime.Off";
+        internal const string DebugPluginDisabledNote = "Debug.PluginDisabledNote";
+        internal const string DebugAutoModeNote = "Debug.AutoModeNote";
+        internal const string DebugManualModeNote = "Debug.ManualModeNote";
+        internal const string DebugGuardMount = "Debug.Guard.Mount";
+        internal const string DebugGuardGuideroid = "Debug.Guard.Guideroid";
+        internal const string DebugGuardActive = "Debug.Guard.Active";
+        internal const string DebugGuardInactive = "Debug.Guard.Inactive";
+        internal const string DebugHookPlaySpecificSound = "Debug.Hook.PlaySpecificSound";
+        internal const string DebugHookPlaySound = "Debug.Hook.PlaySound";
+        internal const string DebugHookPlaySoundDanger = "Debug.Hook.PlaySound.Danger";
+        internal const string DebugHookPlaySystemSound = "Debug.Hook.PlaySystemSound";
+        internal const string DebugHookPlayClipSound = "Debug.Hook.PlayClipSound";
+        internal const string DebugHookPlayMovieSound = "Debug.Hook.PlayMovieSound";
+        internal const string DebugHookPlayBgmSound = "Debug.Hook.PlayBgmSound";
+        internal const string DebugHookPlayWeatherSound = "Debug.Hook.PlayWeatherSound";
+        internal const string DebugHookSetVolume = "Debug.Hook.SetVolume";
+        internal const string DebugHookGetVolume = "Debug.Hook.GetVolume";
+        internal const string DebugHookLoadSoundFile = "Debug.Hook.LoadSoundFile";
+        internal const string DebugHookGetResourceSync = "Debug.Hook.GetResourceSync";
+        internal const string DebugHookGetResourceAsync = "Debug.Hook.GetResourceAsync";
 
         internal const string BlacklistTabHint = "Blacklist.TabHint";
         internal const string BlacklistUserSection = "Blacklist.UserSection";
@@ -80,6 +131,45 @@ internal static class Loc
         internal const string MsgBlacklistFetchUpdated = "Msg.Blacklist.FetchUpdated";
         internal const string MsgBlacklistFetchUpToDate = "Msg.Blacklist.FetchUpToDate";
         internal const string MsgBlacklistFetchFailed = "Msg.Blacklist.FetchFailed";
+
+        internal const string GuardTabHint = "Guard.TabHint";
+        internal const string GuardUserSection = "Guard.UserSection";
+        internal const string GuardUserHint = "Guard.UserHint";
+        internal const string GuardUserCount = "Guard.UserCount";
+        internal const string GuardUserEmpty = "Guard.UserEmpty";
+        internal const string GuardOfficialHandbook = "Guard.OfficialHandbook";
+        internal const string GuardOfficialHint = "Guard.OfficialHint";
+        internal const string GuardOfficialMeta = "Guard.OfficialMeta";
+        internal const string GuardOfficialEmpty = "Guard.OfficialEmpty";
+        internal const string GuardTriggerLabel = "Guard.TriggerLabel";
+        internal const string GuardTriggerMounted = "Guard.Trigger.Mounted";
+        internal const string GuardTriggerGuideroidGrace = "Guard.Trigger.GuideroidGrace";
+        internal const string GuardTriggerInCombat = "Guard.Trigger.InCombat";
+        internal const string GuardTriggerWeaponsOut = "Guard.Trigger.WeaponsOut";
+        internal const string GuardTriggerOccupiedInEvent = "Guard.Trigger.OccupiedInEvent";
+        internal const string GuardTriggerBoundByDuty = "Guard.Trigger.BoundByDuty";
+        internal const string GuardTriggerJumping = "Guard.Trigger.Jumping";
+        internal const string GuardTriggerCasting = "Guard.Trigger.Casting";
+        internal const string GuardHooksLabel = "Guard.HooksLabel";
+        internal const string GuardSkipActiveListScan = "Guard.SkipActiveListScan";
+        internal const string GuardSkipScanBadge = "Guard.SkipScanBadge";
+        internal const string GuardNoteLabel = "Guard.NoteLabel";
+        internal const string GuardAddEntry = "Guard.AddEntry";
+        internal const string GuardDeleteEntry = "Guard.DeleteEntry";
+        internal const string GuardStatusActive = "Guard.Status.Active";
+        internal const string GuardStatusInactive = "Guard.Status.Inactive";
+        internal const string GuardStatusManualOverride = "Guard.Status.ManualOverride";
+        internal const string GuardManualOverrideDetail = "Guard.ManualOverride.Detail";
+        internal const string GuardRefreshOfficial = "Guard.RefreshOfficial";
+        internal const string GuardRefreshOfficialFetching = "Guard.RefreshOfficial.Fetching";
+        internal const string GuardRefreshOfficialCooldown = "Guard.RefreshOfficial.Cooldown";
+        internal const string GuardRefreshOfficialTip = "Guard.RefreshOfficial.Tip";
+        internal const string MsgGuardAddedUser = "Msg.Guard.AddedUser";
+        internal const string MsgGuardRemoved = "Msg.Guard.Removed";
+        internal const string MsgGuardSynced = "Msg.Guard.Synced";
+        internal const string MsgGuardFetchUpdated = "Msg.Guard.FetchUpdated";
+        internal const string MsgGuardFetchUpToDate = "Msg.Guard.FetchUpToDate";
+        internal const string MsgGuardFetchFailed = "Msg.Guard.FetchFailed";
 
         internal const string IpcOverridesTitle = "IpcOverrides.Title";
         internal const string IpcOverridesTitleCount = "IpcOverrides.TitleCount";
@@ -114,6 +204,11 @@ internal static class Loc
 
         internal const string GroupTitle = "Group.Title";
         internal const string GroupDragHint = "Group.DragHint";
+        internal const string GroupDragMoving = "Group.DragMoving";
+        internal const string GroupDropBefore = "Group.Drop.Before";
+        internal const string GroupDropInto = "Group.Drop.Into";
+        internal const string GroupDropAfter = "Group.Drop.After";
+        internal const string GroupDropRootHover = "Group.Drop.RootHover";
         internal const string GroupDropRoot = "Group.DropRoot";
         internal const string GroupNewRoot = "Group.NewRoot";
         internal const string GroupSelectHint = "Group.SelectHint";
@@ -207,6 +302,7 @@ internal static class Loc
         internal const string GroupNewDefault = "Group.NewDefault";
 
         internal const string MsgRefreshedAll = "Msg.RefreshedAll";
+        internal const string MsgClearedCache = "Msg.ClearedCache";
         internal const string MsgRefreshedGroup = "Msg.RefreshedGroup";
         internal const string MsgSwitchedPreset = "Msg.SwitchedPreset";
         internal const string MsgCreatedPreset = "Msg.CreatedPreset";
@@ -234,6 +330,7 @@ internal static class Loc
         internal const string DefaultGroupBattleRoot = "DefaultGroup.BattleRoot";
         internal const string DefaultGroupEnvRoot = "DefaultGroup.EnvRoot";
         internal const string DefaultGroupWeaponSkill = "DefaultGroup.WeaponSkill";
+        internal const string DefaultGroupWeaponSkillDesc = "DefaultGroup.WeaponSkill.Desc";
         internal const string DefaultGroupMagic = "DefaultGroup.Magic";
         internal const string DefaultGroupBuff = "DefaultGroup.Buff";
         internal const string DefaultGroupWeapon = "DefaultGroup.Weapon";

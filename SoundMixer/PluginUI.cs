@@ -90,6 +90,9 @@ public partial class MainWindow : Window
     private bool _showDeletePresetPopup;
     private Vector2? _cachedWindowPos;
     private Vector2? _cachedWindowSize;
+    private bool _windowLayoutDirty;
+    private bool _pendingConfigSave;
+    private int _selectedMainTab;
 
     private const float DefaultWindowWidth = 900f;
     private const float DefaultWindowHeight = 600f;
@@ -131,6 +134,34 @@ public partial class MainWindow : Window
     {
         _cachedWindowPos = ImGui.GetWindowPos();
         _cachedWindowSize = ImGui.GetWindowSize() / ImGuiHelpers.GlobalScale;
+        MarkWindowLayoutDirtyIfChanged();
+    }
+
+    private void MarkWindowLayoutDirtyIfChanged()
+    {
+        if (_cachedWindowSize is not { X: >= MinWindowWidth, Y: >= MinWindowHeight } size
+            || _cachedWindowPos is not { } pos)
+        {
+            return;
+        }
+
+        var cfg = Plugin.Config;
+        if (cfg.MainWindowX != pos.X
+            || cfg.MainWindowY != pos.Y
+            || cfg.MainWindowWidth != size.X
+            || cfg.MainWindowHeight != size.Y)
+        {
+            _windowLayoutDirty = true;
+        }
+    }
+
+    private void CommitWindowLayoutOnMouseRelease()
+    {
+        if (!_windowLayoutDirty || !ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+        {
+            return;
+        }
+
         PersistWindowLayout();
     }
 
@@ -148,6 +179,7 @@ public partial class MainWindow : Window
             && cfg.MainWindowWidth == size.X
             && cfg.MainWindowHeight == size.Y)
         {
+            _windowLayoutDirty = false;
             return;
         }
 
@@ -155,12 +187,18 @@ public partial class MainWindow : Window
         cfg.MainWindowY = pos.Y;
         cfg.MainWindowWidth = size.X;
         cfg.MainWindowHeight = size.Y;
-        cfg.Save();
+        cfg.Save(runSavedHandlers: false);
+        _windowLayoutDirty = false;
     }
 
     public override void OnClose()
     {
-        PersistWindowLayout();
+        Plugin.DisableDebugManualHookControl();
+        FlushPendingConfigSave();
+        if (_windowLayoutDirty)
+        {
+            PersistWindowLayout();
+        }
     }
 
     public override void Draw()
@@ -172,47 +210,79 @@ public partial class MainWindow : Window
         {
             if (ImGui.BeginTabItem($"{L(TabMain)}###SoundMixerMainTab"))
             {
-                DrawLanguageBar();
-                ImGui.Separator();
-                DrawToolbar();
-                ImGui.Separator();
-
-                if (Plugin.Config.ShowRecentSounds)
-                {
-                    DrawMonitoringPanel();
-                    ImGui.Separator();
-                }
-
-                DrawTemporaryOverridesPanel();
-                ImGui.Separator();
-
-                DrawPresetBar();
-                ImGui.Separator();
-
-                DrawSearchBar();
-                ImGui.Separator();
-
-                DrawMainContent();
+                _selectedMainTab = 0;
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem($"{L(TabBlacklist)}###SoundMixerBlacklistTab"))
+            if (ImGui.BeginTabItem($"{L(TabAdvancedSettings)}###SoundMixerAdvancedSettingsTab"))
             {
-                DrawBlacklistTab();
+                _selectedMainTab = 1;
+                ImGui.EndTabItem();
+            }
+
+            if (ImGui.BeginTabItem($"{L(TabDebug)}###SoundMixerDebugTab"))
+            {
+                _selectedMainTab = 2;
                 ImGui.EndTabItem();
             }
 
             if (ImGui.BeginTabItem($"{L(TabChangelog)}###SoundMixerChangelogTab"))
             {
-                DrawChangelogTab();
+                _selectedMainTab = 3;
                 ImGui.EndTabItem();
             }
 
             ImGui.EndTabBar();
         }
 
+        var contentHeight = Math.Max(ImGui.GetContentRegionAvail().Y, 1f);
+        ImGui.BeginChild("###SoundMixerTabContent", new Vector2(0, contentHeight), false);
+        switch (_selectedMainTab)
+        {
+            case 1:
+                DrawAdvancedSettingsTab();
+                break;
+            case 2:
+                DrawDebugTab();
+                break;
+            case 3:
+                DrawChangelogTab();
+                break;
+            default:
+                DrawMainTabContent();
+                break;
+        }
+
+        ImGui.EndChild();
+
         DrawPopups();
         UpdateWindowLayoutCache();
+        CommitWindowLayoutOnMouseRelease();
+    }
+
+    private void DrawMainTabContent()
+    {
+        DrawLanguageBar();
+        ImGui.Separator();
+        DrawToolbar();
+        ImGui.Separator();
+
+        if (Plugin.Config.ShowRecentSounds)
+        {
+            DrawMonitoringPanel();
+            ImGui.Separator();
+        }
+
+        DrawTemporaryOverridesPanel();
+        ImGui.Separator();
+
+        DrawPresetBar();
+        ImGui.Separator();
+
+        DrawSearchBar();
+        ImGui.Separator();
+
+        DrawMainContent();
     }
 
     private void DrawLanguageBar()
@@ -275,6 +345,18 @@ public partial class MainWindow : Window
         }
 
         ImGui.SameLine();
+        if (ImGui.Button(L(BtnClearCache)))
+        {
+            var (released, refreshed) = Plugin.Filter.ClearRuntimeCache();
+            SetStatusMessage(LF(MsgClearedCache, released, refreshed));
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(L(BtnClearCacheTip));
+        }
+
+        ImGui.SameLine();
         ImGui.Dummy(new Vector2(20, 0));
         ImGui.SameLine();
 
@@ -309,6 +391,8 @@ public partial class MainWindow : Window
             ImGui.SetTooltip(L(SafeModeTip));
         }
 
+        ImGui.SameLine();
+        ImGui.TextDisabled($"v{PluginVersion.Display}");
         ImGui.SameLine();
         var monitoring = Plugin.Config.EnableMonitoring;
         if (ImGui.Checkbox(L(Monitoring), ref monitoring))
@@ -395,6 +479,8 @@ public partial class MainWindow : Window
 
         ImGui.EndDisabled();
 
+        DrawMonitoringHookFilter();
+
         ImGui.TextDisabled(
             LF(
                 MonitorHint,
@@ -430,9 +516,23 @@ public partial class MainWindow : Window
                 }
 
                 visibleCount++;
+
+                if (sound.IsPathResolutionFailure)
+                {
+                    var failureLabel =
+                        $"{sound.LastPlayed:HH:mm:ss}  [{L(Loc.Keys.MonitorPathResolveFailed)}]  {sound.FailureDetail}{FormatMonitorHookSuffix(sound.HookSourceId)}";
+                    ImGui.PushID($"path-fail-{sound.LastPlayed.Ticks}");
+                    ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 0.35f, 0.35f, 1f));
+                    ImGui.Selectable(failureLabel);
+                    ImGui.PopStyleColor();
+                    ImGui.PopID();
+                    continue;
+                }
+
                 var volumePct = (int)(sound.Volume * 100);
-                var volumeDb = VolumePerception.FormatDecibels(sound.Volume);
-                var label = $"{sound.LastPlayed:HH:mm:ss}  [{volumePct}% {volumeDb}]  {sound.Category}  {sound.FullPath}";
+                var hookSuffix = FormatMonitorHookSuffix(sound.HookSourceId);
+                var label =
+                    $"{sound.LastPlayed:HH:mm:ss}  [{volumePct}%]  {sound.Category}  {sound.FullPath}{hookSuffix}";
                 var groupId = Plugin.VolumeCalculator.GetMatchedGroupId(sound.FullPath);
                 var labelColor = GroupColorHelper.TryGetDisplayColorForGroupId(Plugin.Config, groupId, out var color)
                     ? color
@@ -598,12 +698,103 @@ public partial class MainWindow : Window
         var suffixColorU32 = suffixGreen ? GetOverrideVolumeColorU32() : nameColorU32;
 
         drawList.AddText(new Vector2(x, textY), nameColorU32, name);
+        if (string.IsNullOrEmpty(volumeSuffix))
+        {
+            return;
+        }
+
         x += ImGui.CalcTextSize(name).X;
         drawList.AddText(new Vector2(x, textY), suffixColorU32, volumeSuffix);
     }
 
+    private void DrawMonitoringHookFilter()
+    {
+        ImGui.Text(L(MonitorHookFilter));
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(L(MonitorHookFilterTip));
+        }
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton($"{L(MonitorHookFilterSelectAll)}##MonitorHookSelectAll"))
+        {
+            Plugin.Config.MonitoringHookFilter = SoundMonitorHookIds.FilterOptions.ToList();
+            Plugin.Config.Save();
+        }
+
+        ImGui.SameLine();
+        if (ImGui.SmallButton($"{L(MonitorHookFilterClear)}##MonitorHookClear"))
+        {
+            Plugin.Config.MonitoringHookFilter.Clear();
+            Plugin.Config.Save();
+        }
+
+        if (ImGui.BeginTable("###MonitorHookFilter", 4, ImGuiTableFlags.SizingStretchSame))
+        {
+            var column = 0;
+            foreach (var hookId in SoundMonitorHookIds.FilterOptions)
+            {
+                if (column == 0)
+                {
+                    ImGui.TableNextRow();
+                }
+
+                ImGui.TableNextColumn();
+                var labelKey = HookGuardIds.TryGetMonitorLabelKey(hookId);
+                var label = labelKey != null ? L(labelKey) : hookId;
+                var selected = Plugin.Config.MonitoringHookFilter.Contains(
+                    hookId,
+                    StringComparer.OrdinalIgnoreCase
+                );
+                if (ImGui.Checkbox($"{label}##MonitorHookFilter{hookId}", ref selected))
+                {
+                    if (selected)
+                    {
+                        if (!Plugin.Config.MonitoringHookFilter.Contains(hookId, StringComparer.OrdinalIgnoreCase))
+                        {
+                            Plugin.Config.MonitoringHookFilter.Add(hookId);
+                        }
+                    }
+                    else
+                    {
+                        Plugin.Config.MonitoringHookFilter.RemoveAll(
+                            id => string.Equals(id, hookId, StringComparison.OrdinalIgnoreCase)
+                        );
+                    }
+
+                    Plugin.Config.Save();
+                }
+
+                column = (column + 1) % 4;
+            }
+
+            ImGui.EndTable();
+        }
+    }
+
+    private static string FormatMonitorHookSuffix(string? hookSourceId)
+    {
+        var labelKey = HookGuardIds.TryGetMonitorLabelKey(hookSourceId);
+        if (labelKey == null)
+        {
+            return string.Empty;
+        }
+
+        return $"  [{L(labelKey)}]";
+    }
+
     private bool PassesMonitoringFilters(SoundInfo sound)
     {
+        if (!PassesMonitoringHookFilter(sound))
+        {
+            return false;
+        }
+
+        if (sound.IsPathResolutionFailure)
+        {
+            return true;
+        }
+
         if (Plugin.Config.HideMatchedMonitoringLogs
             && Plugin.VolumeCalculator.HasMatchingRule(sound.FullPath))
         {
@@ -621,6 +812,18 @@ public partial class MainWindow : Window
         }
 
         return true;
+    }
+
+    private bool PassesMonitoringHookFilter(SoundInfo sound)
+    {
+        var filter = Plugin.Config.MonitoringHookFilter;
+        if (filter == null || filter.Count == 0)
+        {
+            return true;
+        }
+
+        var hookId = sound.HookSourceId ?? string.Empty;
+        return filter.Exists(id => string.Equals(id, hookId, StringComparison.OrdinalIgnoreCase));
     }
 
     private bool MatchesMonitoringHideKeywords(SoundInfo sound)
@@ -747,15 +950,13 @@ public partial class MainWindow : Window
             var selected = presets[_selectedPresetIndex];
             if (selected.Id != Plugin.Config.ActivePresetId)
             {
-                PresetManager.SwitchPreset(Plugin.Config, selected.Id, Plugin.Filter);
-                _selectedGroupId = null;
-                Plugin.VolumeCalculator.ClearCache();
-                if (Plugin.Config.Enabled)
+                FlushPendingConfigSave();
+                if (Plugin.SwitchActivePreset(selected.Id))
                 {
-                    Plugin.Filter.RefreshAllActiveSounds();
+                    _selectedGroupId = null;
+                    _pendingConfigSave = false;
+                    SetStatusMessage(LF(MsgSwitchedPreset, selected.Name));
                 }
-
-                SetStatusMessage(LF(MsgSwitchedPreset, selected.Name));
             }
         }
 
@@ -891,13 +1092,32 @@ public partial class MainWindow : Window
         }
     }
 
+    private static string GetGroupDropIntentLabel(GroupDropIntent intent) =>
+        intent switch
+        {
+            GroupDropIntent.Before => L(GroupDropBefore),
+            GroupDropIntent.Into => L(GroupDropInto),
+            GroupDropIntent.After => L(GroupDropAfter),
+            GroupDropIntent.ToRoot => L(GroupDropRootHover),
+            _ => string.Empty,
+        };
+
     private void DrawRootDropZone()
     {
         ImGui.PushStyleColor(ImGuiCol.Header, new Vector4(0.2f, 0.35f, 0.2f, 0.35f));
         ImGui.Selectable(L(GroupDropRoot), false);
+        var rootRectMin = ImGui.GetItemRectMin();
+        var rootRectMax = ImGui.GetItemRectMax();
         if (ImGui.BeginDragDropTarget())
         {
-            var draggedId = GroupHierarchy.ReadDragPayload();
+            GroupHierarchy.DrawDropIntentOverlay(
+                rootRectMin,
+                rootRectMax,
+                GroupDropIntent.ToRoot,
+                L(GroupDropRootHover)
+            );
+
+            var draggedId = GroupHierarchy.TryConsumeDroppedGroupId();
             if (draggedId != null
                 && GroupHierarchy.ApplyDrop(Plugin.Config, draggedId, null, GroupDropIntent.ToRoot))
             {
@@ -939,12 +1159,8 @@ public partial class MainWindow : Window
             ImGui.SameLine();
         }
 
-        var effectivePct = (int)(Plugin.Api.GetEffectiveGroupVolume(group.Id) * 100);
         var hasOverride = Plugin.Api.HasTemporaryGroupVolume(group.Id);
-        var volumeSuffix = LF(
-            hasOverride ? GroupTreeOverrideVolume : GroupTreeEffectiveVolume,
-            effectivePct
-        );
+        var volumeSuffix = BuildGroupTreeVolumeSuffix(group, hasOverride);
         var isSelected = _selectedGroupId == group.Id;
         var labelColor = GroupColorHelper.TryGetDisplayColor(Plugin.Config, group, out var color)
             ? color
@@ -956,6 +1172,32 @@ public partial class MainWindow : Window
         }
 
         DrawNameWithVolumeSuffix(group.Name, volumeSuffix, hasOverride, labelColor);
+        var dropRectMin = ImGui.GetItemRectMin();
+        var dropRectMax = ImGui.GetItemRectMax();
+
+        GroupHierarchy.BeginDragSource(group.Id, LF(GroupDragMoving, group.Name));
+
+        if (ImGui.BeginDragDropTarget())
+        {
+            var intent = GroupHierarchy.GetDropIntentForRect(dropRectMin, dropRectMax);
+            GroupHierarchy.DrawDropIntentOverlay(dropRectMin, dropRectMax, intent, GetGroupDropIntentLabel(intent));
+            var draggedId = GroupHierarchy.TryConsumeDroppedGroupId();
+            if (draggedId != null
+                && GroupHierarchy.ApplyDrop(Plugin.Config, draggedId, group.Id, intent))
+            {
+                SaveGroupChanges();
+                var message = intent switch
+                {
+                    GroupDropIntent.Into => LF(MsgMovedInto, group.Name),
+                    GroupDropIntent.Before => L(MsgReordered),
+                    GroupDropIntent.After => L(MsgReordered),
+                    _ => L(MsgReordered),
+                };
+                SetStatusMessage(message);
+            }
+
+            ImGui.EndDragDropTarget();
+        }
 
         if (ImGui.BeginPopupContextItem($"groupctx##{group.Id}"))
         {
@@ -990,31 +1232,6 @@ public partial class MainWindow : Window
             }
 
             ImGui.EndPopup();
-        }
-
-        GroupHierarchy.BeginDragSource(group.Id, group.Name);
-
-        if (ImGui.BeginDragDropTarget())
-        {
-            var draggedId = GroupHierarchy.ReadDragPayload();
-            if (draggedId != null)
-            {
-                var intent = GroupHierarchy.GetDropIntentForItem();
-                if (GroupHierarchy.ApplyDrop(Plugin.Config, draggedId, group.Id, intent))
-                {
-                    SaveGroupChanges();
-                    var message = intent switch
-                    {
-                        GroupDropIntent.Into => LF(MsgMovedInto, group.Name),
-                        GroupDropIntent.Before => L(MsgReordered),
-                        GroupDropIntent.After => L(MsgReordered),
-                        _ => L(MsgReordered),
-                    };
-                    SetStatusMessage(message);
-                }
-            }
-
-            ImGui.EndDragDropTarget();
         }
 
         ImGui.PopID();
@@ -1072,6 +1289,11 @@ public partial class MainWindow : Window
         if (ImGui.Button(L(GroupNewChild)))
         {
             OpenNewGroupPopup(group.Id);
+        }
+
+        if (!string.IsNullOrWhiteSpace(group.Description))
+        {
+            ImGui.TextDisabled(group.Description);
         }
 
         var parentName = GroupHierarchy.GetParentName(Plugin.Config, group);
@@ -1315,8 +1537,7 @@ public partial class MainWindow : Window
         if (Math.Abs(volume - group.GroupVolume) > 0.001f)
         {
             group.GroupVolume = volume;
-            Plugin.Config.Save();
-            Plugin.VolumeCalculator.ClearCache();
+            _pendingConfigSave = true;
         }
 
         var maxPct = (int)(maxVolume * 100);
@@ -1326,17 +1547,45 @@ public partial class MainWindow : Window
             volume,
             maxVolume,
             LF(GroupVolumeSliderTip, maxPct),
-            newVolume =>
-            {
-                group.GroupVolume = newVolume;
-                Plugin.Config.Save();
-                Plugin.VolumeCalculator.ClearCache();
-                if (Plugin.Config.Enabled)
-                {
-                    Plugin.Filter.RefreshGroupSounds(group.Id);
-                }
-            }
+            newVolume => ApplyGroupVolumeLive(group, newVolume),
+            newVolume => CommitGroupVolume(group, newVolume)
         );
+    }
+
+    private void ApplyGroupVolumeLive(SoundGroup group, float newVolume)
+    {
+        group.GroupVolume = newVolume;
+        Plugin.Api.ApplyLiveEffectiveState();
+        _pendingConfigSave = true;
+
+        if (Plugin.Config.Enabled)
+        {
+            Plugin.Filter.RefreshGroupSounds(group.Id);
+        }
+    }
+
+    private void CommitGroupVolume(SoundGroup group, float newVolume)
+    {
+        group.GroupVolume = newVolume;
+        Plugin.Api.ApplyLiveEffectiveState();
+        Plugin.Config.Save();
+        _pendingConfigSave = false;
+
+        if (Plugin.Config.Enabled)
+        {
+            Plugin.Filter.RefreshGroupSounds(group.Id);
+        }
+    }
+
+    private void FlushPendingConfigSave()
+    {
+        if (!_pendingConfigSave)
+        {
+            return;
+        }
+
+        Plugin.Config.Save();
+        _pendingConfigSave = false;
     }
 
     private void DrawEditableVolumeSlider(
@@ -1344,14 +1593,20 @@ public partial class MainWindow : Window
         float volume,
         float maxVolume,
         string tooltip,
-        Action<float> setVolume
+        Action<float> onVolumeChanged,
+        Action<float>? onVolumeCommitted = null
     )
     {
         var value = volume;
         ImGui.SetNextItemWidth(300);
         if (ImGui.SliderFloat($"##{id}", ref value, 0.0f, maxVolume))
         {
-            setVolume(value);
+            onVolumeChanged(value);
+        }
+
+        if (onVolumeCommitted != null && ImGui.IsItemDeactivatedAfterEdit())
+        {
+            onVolumeCommitted(value);
         }
 
         if (ImGui.IsItemHovered())
@@ -1359,7 +1614,15 @@ public partial class MainWindow : Window
             ImGui.SetTooltip(tooltip);
             if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left))
             {
-                OpenVolumeEditPopup(value, maxVolume, setVolume);
+                OpenVolumeEditPopup(
+                    value,
+                    maxVolume,
+                    edited =>
+                    {
+                        onVolumeChanged(edited);
+                        onVolumeCommitted?.Invoke(edited);
+                    }
+                );
             }
         }
 
@@ -1903,7 +2166,7 @@ public partial class MainWindow : Window
                 _selectedGroupId = preset.Groups[0].Id;
                 _selectedPresetIndex = Plugin.Config.Presets.Count - 1;
                 Plugin.Config.Save();
-                Plugin.VolumeCalculator.ClearCache();
+                Plugin.ApplyPresetRuntimeState();
                 SetStatusMessage(LF(MsgCreatedPreset, preset.Name));
                 popupOpen = false;
                 ImGui.CloseCurrentPopup();
@@ -1952,12 +2215,7 @@ public partial class MainWindow : Window
                 _selectedGroupId = copy.Groups.FirstOrDefault()?.Id;
                 _selectedPresetIndex = Plugin.Config.Presets.Count - 1;
                 Plugin.Config.Save();
-                Plugin.VolumeCalculator.ClearCache();
-                if (Plugin.Config.Enabled)
-                {
-                    Plugin.Filter.RefreshAllActiveSounds();
-                }
-
+                Plugin.ApplyPresetRuntimeState();
                 SetStatusMessage(LF(MsgCopiedPreset, copy.Name));
                 popupOpen = false;
                 ImGui.CloseCurrentPopup();
@@ -2001,12 +2259,7 @@ public partial class MainWindow : Window
                 _selectedGroupId = Plugin.Config.Groups.FirstOrDefault()?.Id;
                 Plugin.Filter.ReloadPathAliases();
                 Plugin.Config.Save();
-                Plugin.VolumeCalculator.ClearCache();
-                if (Plugin.Config.Enabled)
-                {
-                    Plugin.Filter.RefreshAllActiveSounds();
-                }
-
+                Plugin.ApplyPresetRuntimeState();
                 SetStatusMessage(LF(MsgDeletedPreset, active.Name));
                 popupOpen = false;
                 ImGui.CloseCurrentPopup();
@@ -2045,6 +2298,33 @@ public partial class MainWindow : Window
         {
             DrawNode(root, 0);
         }
+    }
+
+    private string BuildGroupTreeVolumeSuffix(SoundGroup group, bool hasOverride)
+    {
+        if (hasOverride)
+        {
+            var overridePct = (int)(Plugin.Api.GetEffectiveGroupVolume(group.Id) * 100);
+            return LF(GroupTreeOverrideVolume, overridePct);
+        }
+
+        if (!ShouldShowGroupTreeEffectiveVolume(group))
+        {
+            return string.Empty;
+        }
+
+        var effectivePct = (int)(Plugin.Api.GetEffectiveGroupVolume(group.Id) * 100);
+        return LF(GroupTreeEffectiveVolume, effectivePct);
+    }
+
+    private bool ShouldShowGroupTreeEffectiveVolume(SoundGroup group)
+    {
+        if (Math.Abs(group.GroupVolume - 1.0f) > 0.001f)
+        {
+            return true;
+        }
+
+        return GroupHierarchy.HasPathRules(group);
     }
 
     private bool GroupMatchesSearch(SoundGroup group)

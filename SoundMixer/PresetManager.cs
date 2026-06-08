@@ -22,6 +22,11 @@ internal static class PresetManager
 {
     internal static void Initialize(Configuration config)
     {
+        if (GroupHierarchy.RepairConfiguration(config))
+        {
+            config.Save();
+        }
+
         if (config.Presets.Count == 0)
         {
             Loc.Bind(config);
@@ -195,6 +200,7 @@ internal static class PresetManager
         {
             Id = group.Id,
             Name = group.Name,
+            Description = group.Description,
             ParentId = group.ParentId,
             GroupVolume = group.GroupVolume,
             ApplyToChildren = group.ApplyToChildren,

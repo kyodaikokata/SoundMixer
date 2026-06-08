@@ -1,6 +1,6 @@
 # SoundMixer
 
-**Current version:** 0.2.2.1
+**Current version:** 0.2.3.0
 
 **Source repository:** https://github.com/kyodaikokata/SoundMixer
 
@@ -39,6 +39,8 @@ Per-SCD-path volume mixer for FFXIV sound effects. Match sounds by **Glob path p
 | **Presets** | Switch whole layouts (groups + volumes); create, copy, delete |
 | **Live monitor** | Recently played paths, filters, right-click → add to group / set volume / fix path |
 | **Looping audio** | BGM and weather/ambient hooks with **Refresh All** or per-group refresh |
+| **Clear Cache** | Reset runtime tracking and pooled SoundData without changing saved groups |
+| **Debug** | Per-hook toggles for CTD diagnosis; PlaySound off by default with danger notice |
 | **Blacklist** | User-editable rules + read-only official list (keyword / path / Glob); manual fetch from GitHub |
 | **External control** | Session-only IPC overrides from other plugins (tag + priority); cleared on logout |
 
@@ -55,7 +57,7 @@ Enable **Safe Mode** (toolbar, right after **Expert Mode**) if you experience cr
 | **Off** (default) | Hooks stay active while mounted; footsteps and other rules still apply |
 | **On** | Suspend all audio hooks during mount / dismount transitions (~5 s grace); skip active-sound list scans |
 
-The **official blacklist** (Blacklist tab) also blocks risky paths (e.g. Guideroid loop sounds) without disabling mount mixing entirely.
+The **official blacklist** (under Advanced Settings) blocks risky mount-loop paths while **BGM and SetVolume/GetVolume stay active** during Guideroid grace (0.2.3.0).
 
 ### Quick start
 
@@ -75,10 +77,12 @@ The **official blacklist** (Blacklist tab) also blocks risky paths (e.g. Guidero
 - **Blacklist** tab: add your own rules, or **Fetch official list** (10 s cooldown) for author-maintained entries
 - Toolbar **(IPC)** means another plugin has temporary overrides active
 
-### Recent highlights (0.2.2.0)
+### Recent highlights (0.2.3.0)
 
-- **Safe Mode**: mount hook suspension is now optional (off by default)
-- **Blacklist**: manual fetch for official list; bilingual official notes (0.2.1.9)
+- **PlaySound disabled by default** (confirmed CTD); danger notice in **Debug** tab; enable only for diagnosis
+- **UI one-shot sounds**: fixed mute after group volume changes; toolbar **Clear Cache** without restarting
+- **Guideroid / mount BGM**: SetVolume/GetVolume stay enabled during grace; ride BGM volume applies while mounted
+- **Group tree**: effective volume from own path rules only; color sync only when parent changes
 - See the in-game **Changelog** tab for full history
 
 ---
@@ -96,6 +100,8 @@ The **official blacklist** (Blacklist tab) also blocks risky paths (e.g. Guidero
 | **预设** | 切换整套分组与音量方案；新建、复制、删除 |
 | **实时监听** | 最近播放路径、筛选、右键 → 加入分组 / 设音量 / 修正路径 |
 | **持续播放** | BGM、天气/环境音 hook；**刷新所有音效** 或按分组刷新 |
+| **清除缓存** | 清除运行时追踪与池化节点，不改动已保存分组 |
+| **调试** | 逐 hook 开关（CTD 溯源）；PlaySound 默认关闭并附危险说明 |
 | **黑名单** | 玩家自定义规则 + 官方只读列表（关键词 / 路径 / Glob）；可手动从 GitHub 拉取 |
 | **外部控制** | 其他插件 IPC 临时覆盖（tag + priority）；登出后清除 |
 
@@ -112,7 +118,7 @@ The **official blacklist** (Blacklist tab) also blocks risky paths (e.g. Guidero
 | **关闭**（默认） | 骑乘期间 hook 保持启用，音量规则正常生效 |
 | **开启** | 骑乘及上下马过渡期间挂起全部音频 hook（含约 5 秒 grace）；跳过活跃音效链表扫描 |
 
-**官方黑名单**（黑名单 Tab）会屏蔽高风险路径（如外勤机循环音），无需完全关闭骑乘期的混音能力。
+**官方黑名单**（高级设置 → 音效黑名单）会屏蔽高风险坐骑循环路径；**0.2.3.0 起**外勤机 grace 期间仍保留 SetVolume/GetVolume，骑乘 BGM 可正常调节。
 
 ### 安装
 
@@ -136,8 +142,10 @@ The **official blacklist** (Blacklist tab) also blocks risky paths (e.g. Guidero
 - **黑名单** Tab：自定义规则，或点 **拉取官方列表**（10 秒冷却）获取作者维护条目
 - 工具栏 **(IPC)** 表示有其他插件的临时覆盖生效中
 
-### 近期要点（0.2.2.0）
+### 近期要点（0.2.3.0）
 
-- **安全模式**：骑乘 hook 挂起改为可选（默认关闭）
-- **黑名单**：官方列表手动拉取；官方备注中英双语（0.2.1.9）
+- **PlaySound 默认禁用**（已确认崩溃）；**调试** Tab 有危险说明，仅排查时手动开启
+- **UI 一次性音效**：修复分组调音量后 UI 音全静音；工具栏 **清除缓存** 无需重开游戏
+- **外勤机 / 骑乘 BGM**：grace 期间不再挂起 SetVolume/GetVolume；骑乘 BGM 可正常调节
+- **分组树**：实际音量仅看自身路径规则；改色仅父级变化时同步子组
 - 完整历史见游戏内 **更新日志** 标签

@@ -1,0 +1,30 @@
+{
+  "revision": 3,
+  "updated": "2026-06-08",
+  "entries": [
+    {
+      "id": "mounted-disable-play-family",
+      "trigger": "mounted",
+      "disableHooks": [
+        "PlaySystemSound",
+        "PlayClipSound",
+        "PlayMovieSound"
+      ],
+      "skipActiveListScan": false,
+      "notes": {
+        "zh": "骑乘及上下马过渡（含 5 秒 grace）期间禁用 PlaySystemSound、PlayClipSound、PlayMovieSound。PlaySound 已默认不加载。",
+        "en": "While mounted or during mount/dismount grace (5s): disable PlaySystemSound, PlayClipSound, and PlayMovieSound. PlaySound is not loaded by default."
+      }
+    },
+    {
+      "id": "guideroid-grace-skip-scan",
+      "trigger": "guideroid_grace",
+      "disableHooks": [],
+      "skipActiveListScan": true,
+      "notes": {
+        "zh": "外勤机循环音 grace 期间跳过活跃 SoundData 链表扫描（不再挂起 SetVolume/GetVolume）。",
+        "en": "During Guideroid mount-loop grace: skip active SoundData list scans (SetVolume/GetVolume stay enabled)."
+      }
+    }
+  ]
+}

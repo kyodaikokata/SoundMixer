@@ -41,7 +41,8 @@
           "ApplyToChildren": true,
           "SoundPaths": [],
           "PathPatterns": [
-            "**/music/**"
+            "**/music/**",
+            "**/bgm/**"
           ],
           "Icon": "",
           "IsBuiltIn": true,
@@ -124,6 +125,7 @@
           "PathPatterns": [
             "**/vfx/weponskill/**"
           ],
+          "Description": "",
           "Icon": "",
           "IsBuiltIn": true,
           "IsExpanded": true,
@@ -290,7 +292,8 @@
       "ApplyToChildren": true,
       "SoundPaths": [],
       "PathPatterns": [
-        "**/music/**"
+        "**/music/**",
+        "**/bgm/**"
       ],
       "Icon": "",
       "IsBuiltIn": true,
@@ -373,6 +376,7 @@
       "PathPatterns": [
         "**/vfx/weponskill/**"
       ],
+      "Description": "",
       "Icon": "",
       "IsBuiltIn": true,
       "IsExpanded": true,

@@ -4,7 +4,7 @@
     "Name": "SoundMixer",
     "InternalName": "SoundMixer",
     "Punchline": "Advanced FFXIV Sound Effect Volume Mixer",
-    "Description": "【国际 Global 构建】Per-SCD-path volume control: groups, Glob patterns, presets, live monitor, BGM/ambient, IPC overrides, resizable UI. 0–350% gain. Commands: /soundmixer, /smix",
+    "Description": "【国际 Global 构建】Per-SCD-path volume control: groups, Glob, presets, live monitor, blacklist, BGM/ambient, IPC, debug hooks. PlaySound off by default. 0–350% gain. Commands: /soundmixer, /smix",
     "ApplicableVersion": "any",
     "Tags": [
       "sound",
@@ -19,8 +19,8 @@
       "sound"
     ],
     "DalamudApiLevel": 15,
-    "AssemblyVersion": "0.2.1.2",
-    "Changelog": "0.2.1.2: Fix mount/dismount SetVolume hook crashes. See in-app changelog.",
+    "AssemblyVersion": "0.2.3.0",
+    "Changelog": "0.2.3.0: PlaySound disabled by default (confirmed CTD). UI SFX fix, Clear Cache, Guideroid grace & mount BGM, group tree UX. See in-app changelog.",
     "LastUpdate": "0",
     "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
     "DownloadLinkInstall": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-global.zip",
