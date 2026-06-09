@@ -295,7 +295,7 @@ public class VolumeCalculator
 
         var volume = CalculateVolume(soundPath, out _);
 
-        volume = Configuration.ClampToEngineCap(volume);
+        volume = Config.ClampVolumeToEngineCap(volume);
         VolumeCache[soundPath] = volume;
         return volume;
     }

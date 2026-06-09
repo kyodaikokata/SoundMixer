@@ -26,7 +26,7 @@ internal static class VolumePerception
         return $"{ToDecibels(linearMultiplier):+#0.0;-#0.0;0} dB";
     }
 
-    internal static string DescribeLinearGain(float linearMultiplier)
+    internal static string DescribeLinearGain(float linearMultiplier, float engineCap = Configuration.EngineAudibleCap)
     {
         if (linearMultiplier <= 0.001f)
         {
@@ -38,16 +38,18 @@ internal static class VolumePerception
             return Loc.Get(VolumeRangeNormal);
         }
 
-        if (linearMultiplier < Configuration.EngineAudibleCap - 0.01f)
+        if (linearMultiplier < engineCap - 0.01f)
         {
-            return Loc.Get(VolumeRangeExpert);
+            return engineCap > Configuration.EngineAudibleCap + 0.01f
+                ? Loc.Get(VolumeRangeDebugExtreme)
+                : Loc.Get(VolumeRangeExpert);
         }
 
         return Loc.Get(VolumeAtCap);
     }
 
-    internal static bool IsAtEngineCap(float linearMultiplier)
+    internal static bool IsAtEngineCap(float linearMultiplier, float engineCap = Configuration.EngineAudibleCap)
     {
-        return linearMultiplier >= Configuration.EngineAudibleCap - 0.01f;
+        return linearMultiplier >= engineCap - 0.01f;
     }
 }

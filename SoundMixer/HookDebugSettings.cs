@@ -22,6 +22,9 @@ public class HookDebugSettings
     /// <summary>When on, per-hook checkboxes below control runtime Enable/Disable.</summary>
     public bool ManualControl { get; set; }
 
+    /// <summary>Debug tab only: allow up to 10000% linear gain and raise engine apply cap to match.</summary>
+    public bool DebugExtremeVolume { get; set; }
+
     public bool PlaySpecificSound { get; set; } = true;
     public bool PlaySound { get; set; } = false;
     public bool PlaySystemSound { get; set; } = true;

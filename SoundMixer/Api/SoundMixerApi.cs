@@ -337,6 +337,6 @@ internal sealed class SoundMixerApi
             volume *= ResolveEffectiveGroupVolume(group.ParentId);
         }
 
-        return Configuration.ClampToEngineCap(volume);
+        return _plugin.Config.ClampVolumeToEngineCap(volume);
     }
 }

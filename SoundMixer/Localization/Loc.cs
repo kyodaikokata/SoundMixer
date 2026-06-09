@@ -66,6 +66,9 @@ internal static class Loc
         internal const string DebugManualControl = "Debug.ManualControl";
         internal const string DebugManualControlTip = "Debug.ManualControl.Tip";
         internal const string DebugManualControlUnsafeTip = "Debug.ManualControl.UnsafeTip";
+        internal const string DebugExtremeVolume = "Debug.ExtremeVolume";
+        internal const string DebugExtremeVolumeTip = "Debug.ExtremeVolume.Tip";
+        internal const string DebugExtremeVolumeActiveNote = "Debug.ExtremeVolume.ActiveNote";
         internal const string DebugHookAllOn = "Debug.Hook.AllOn";
         internal const string DebugHookAllOff = "Debug.Hook.AllOff";
         internal const string DebugHookApply = "Debug.Hook.Apply";
@@ -342,6 +345,7 @@ internal static class Loc
         internal const string VolumeSilent = "Volume.Silent";
         internal const string VolumeRangeNormal = "Volume.RangeNormal";
         internal const string VolumeRangeExpert = "Volume.RangeExpert";
+        internal const string VolumeRangeDebugExtreme = "Volume.RangeDebugExtreme";
         internal const string VolumeAtCap = "Volume.AtCap";
         internal const string VolumeLinearTip = "Volume.LinearTip";
         internal const string VolumeAbove100Tip = "Volume.Above100Tip";

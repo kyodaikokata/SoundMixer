@@ -31,7 +31,7 @@ internal static unsafe class StreamingBgmTracker
             || MountTransitionGuard.IsRideBgmPath(normalized);
     }
 
-    internal static void NotePlay(string scdPath, float multiplier, SoundData* result)
+    internal static void NotePlay(string scdPath, float multiplier, SoundData* result, uint soundNumber = 0)
     {
         if (string.IsNullOrWhiteSpace(scdPath) || !IsBgmOrMusicPath(scdPath))
         {
@@ -49,7 +49,7 @@ internal static unsafe class StreamingBgmTracker
 
         if (result != null)
         {
-            SoundVolumeTracker.PrepareTrackedForPlay(result, scdPath, 0);
+            SoundVolumeTracker.PrepareTrackedForPlay(result, scdPath, soundNumber);
             return;
         }
 

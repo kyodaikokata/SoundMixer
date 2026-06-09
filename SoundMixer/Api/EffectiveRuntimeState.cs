@@ -35,7 +35,7 @@ internal sealed class EffectiveRuntimeState
                 var group = Snapshot.Groups.FirstOrDefault(g => g.Id == groupId);
                 if (group != null)
                 {
-                    group.GroupVolume = Configuration.ClampToEngineCap(volume);
+                    group.GroupVolume = config.ClampVolumeToEngineCap(volume);
                 }
             }
         }

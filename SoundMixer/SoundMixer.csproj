@@ -12,9 +12,9 @@
         <Use_Dalamud_CN Condition="'$(Use_Dalamud_CN)' == ''">true</Use_Dalamud_CN>
         <DalamudApiLevel>15</DalamudApiLevel>
 
-        <Version>0.2.3.1</Version>
-        <AssemblyVersion>0.2.3.1</AssemblyVersion>
-        <FileVersion>0.2.3.1</FileVersion>
+        <Version>0.2.3.2</Version>
+        <AssemblyVersion>0.2.3.2</AssemblyVersion>
+        <FileVersion>0.2.3.2</FileVersion>
 
         <Author>KKT</Author>
         <Name>SoundMixer</Name>
@@ -24,7 +24,7 @@
         <Tags>sound;audio;volume;mixer;sfx;customization</Tags>
         <CategoryTags>utility;sound</CategoryTags>
         <IconUrl>https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/images/SoundMixer/icon.png</IconUrl>
-        <Changelog>0.2.3.1: Safe path always on (Safe Mode removed). Fix load CTD and nested footstep child groups via SoundEnforcement.</Changelog>
+        <Changelog>0.2.3.2: Mod path alias + volume boost fixes for visual mod music; extreme volume debug (10000% cap).</Changelog>
         <ManifestType>json</ManifestType>
         <AcceptsFeedback>true</AcceptsFeedback>
         <FeedbackMessage>Please include steps to reproduce and the sound path if reporting a matching issue.</FeedbackMessage>

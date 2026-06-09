@@ -10,6 +10,8 @@ namespace SoundMixer;
 internal static unsafe class SoundDataSafety
 {
     private const int MinSoundDataReadableBytes = 0x80;
+    /// <summary>Covers SoundData.Volume (0x60) through VolumeCategory (0xB4) for boost writes.</summary>
+    private const int MinSoundDataVolumeFieldBytes = 0xB8;
     private static readonly int PointerSize = IntPtr.Size;
     private const uint MemCommit = 0x1000;
     private const uint PageNoAccess = 0x01;
@@ -42,6 +44,18 @@ internal static unsafe class SoundDataSafety
     internal static bool IsValidForVolumeWrite(SoundData* soundData)
     {
         return TryReadSoundData(soundData, out var isActive, out _, out _) && isActive;
+    }
+
+    internal static bool IsValidForExtendedVolumeWrite(SoundData* soundData)
+    {
+        if (soundData == null)
+        {
+            return false;
+        }
+
+        return IsReadable((nint)soundData, MinSoundDataVolumeFieldBytes)
+            && TryReadSoundData(soundData, out var isActive, out _, out _)
+            && isActive;
     }
 
     internal static bool IsReadablePointer(nint address, int size = MinSoundDataReadableBytes)

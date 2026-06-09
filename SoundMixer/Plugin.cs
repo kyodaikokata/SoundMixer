@@ -48,6 +48,7 @@ public class Plugin : IDalamudPlugin
         Loc.Bind(Config);
 
         VolumeCalculator = new VolumeCalculator(Config);
+        BindEngineCapClamp();
         Filter = new Filter(this);
         
         // Hook state is applied after Api initialization via RefreshEffectiveState.
@@ -86,6 +87,7 @@ public class Plugin : IDalamudPlugin
         Api = new SoundMixerApi(this);
         Configuration.OnSaved = () =>
         {
+            BindEngineCapClamp();
             OfficialBlacklistSync.RebuildFromConfig(Config);
             OfficialHookGuardsSync.RebuildFromConfig(Config);
             ApplyHookGuardState();
@@ -113,6 +115,11 @@ public class Plugin : IDalamudPlugin
     internal void ApplyHookGuardState()
     {
         Filter.ApplyMountSafeHookState();
+    }
+
+    internal void BindEngineCapClamp()
+    {
+        SoundVolumeTracker.BindEngineCapClamp(Config.ClampVolumeToEngineCap);
     }
 
     internal bool AddUserBlacklistEntry(SoundBlacklistMatchKind kind, string match, string note)
@@ -264,6 +271,12 @@ public class Plugin : IDalamudPlugin
 
     internal string ResolveSoundPath(string rawPath, nint scdDataPtr = 0)
     {
+        rawPath = rawPath.ToLowerInvariant().Trim();
+        if (Filter.TryResolveScdBasenameAlias(rawPath, out var basenameAlias))
+        {
+            rawPath = basenameAlias;
+        }
+
         var aliases = Api?.EffectiveSnapshot.PathAliases ?? Config.PathAliases;
         return PathResolver.ResolveScdPath(Config, rawPath, aliases, scdDataPtr);
     }
@@ -342,7 +355,7 @@ public class Plugin : IDalamudPlugin
 
         foreach (var group in Config.Groups)
         {
-            var clamped = Configuration.ClampToEngineCap(group.GroupVolume);
+            var clamped = Config.ClampVolumeToEngineCap(group.GroupVolume);
             if (Math.Abs(clamped - group.GroupVolume) > 0.001f)
             {
                 group.GroupVolume = clamped;
@@ -352,7 +365,7 @@ public class Plugin : IDalamudPlugin
 
         foreach (var key in Config.IndividualVolumes.Keys.ToList())
         {
-            var clamped = Configuration.ClampToEngineCap(Config.IndividualVolumes[key]);
+            var clamped = Config.ClampVolumeToEngineCap(Config.IndividualVolumes[key]);
             if (Math.Abs(clamped - Config.IndividualVolumes[key]) > 0.001f)
             {
                 Config.IndividualVolumes[key] = clamped;

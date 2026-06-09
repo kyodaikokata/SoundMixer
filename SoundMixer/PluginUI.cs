@@ -1631,13 +1631,14 @@ public partial class MainWindow : Window
         ImGui.SameLine();
         ImGui.Text($"{value * 100:F0}%  ({VolumePerception.FormatDecibels(value)})");
 
-        if (VolumePerception.IsAtEngineCap(value))
+        var engineCap = Plugin.Config.ResolveEngineCap();
+        if (VolumePerception.IsAtEngineCap(value, engineCap))
         {
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(1, 0, 0, 1), L(VolumeMaxBadge));
             if (ImGui.IsItemHovered())
             {
-                ImGui.SetTooltip(VolumePerception.DescribeLinearGain(value));
+                ImGui.SetTooltip(VolumePerception.DescribeLinearGain(value, engineCap));
             }
         }
         else if (value > 2.0f)
@@ -1647,7 +1648,7 @@ public partial class MainWindow : Window
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip(
-                    $"{VolumePerception.DescribeLinearGain(value)}\n"
+                    $"{VolumePerception.DescribeLinearGain(value, engineCap)}\n"
                         + LF(VolumeLinearTip, $"{value * 100:F0}", VolumePerception.FormatDecibels(value))
                 );
             }

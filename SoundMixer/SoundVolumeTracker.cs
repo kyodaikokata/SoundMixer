@@ -18,8 +18,24 @@ internal sealed class TrackedSoundVolume
 internal static unsafe class SoundVolumeTracker
 {
     private const int VolumeFadeTargetOffset = 0x64;
+    private const int VolumeCompanionOffset = 0x64;
+    private const int VolumeAuxOffsetA = 0x80;
+    private const int VolumeAuxOffsetB = 0x84;
+    private const int VolumeCategoryOffset = 0xB4;
+
+    internal delegate void NativeSetVolumeDelegate(SoundData* soundData, float volume);
+
+    private static Func<float, float> s_clampToEngineCap =
+        static volume => Math.Clamp(volume, 0f, Configuration.EngineAudibleCap);
 
     private static readonly ConcurrentDictionary<nint, TrackedSoundVolume> Tracked = new();
+
+    internal static void BindEngineCapClamp(Func<float, float> clamp)
+    {
+        s_clampToEngineCap = clamp ?? (static volume => Math.Clamp(volume, 0f, Configuration.EngineAudibleCap));
+    }
+
+    private static float ClampToEngineCap(float volume) => s_clampToEngineCap(volume);
 
     internal static float GetMultiplier(SoundData* soundData, VolumeCalculator calculator)
     {
@@ -28,25 +44,109 @@ internal static unsafe class SoundVolumeTracker
             return 1.0f;
         }
 
-        if (SoundEnforcement.TryResolve(soundData, calculator, out var resolved))
+        if (TryResolveEnforcement(soundData, calculator, out _, out _, out var multiplier))
         {
-            var ptr = (nint)soundData;
-            if (Tracked.TryGetValue(ptr, out var tracked))
-            {
-                tracked.ScdPath = resolved.ResolvedPath;
-                tracked.SoundNumber = resolved.SoundNumber;
-            }
-
-            return resolved.Multiplier;
+            return multiplier;
         }
 
         return 1.0f;
     }
 
     /// <summary>
+    /// Safe node resolve first; then play-hook path (mod/PlaySound tracked), knownScdPath, or streaming BGM.
+    /// </summary>
+    private static bool TryResolveEnforcement(
+        SoundData* soundData,
+        VolumeCalculator calculator,
+        out string path,
+        out uint soundNumber,
+        out float multiplier,
+        string? knownScdPath = null
+    )
+    {
+        path = string.Empty;
+        soundNumber = 0;
+        multiplier = 1.0f;
+
+        if (soundData == null)
+        {
+            return false;
+        }
+
+        if (SoundEnforcement.TryResolve(soundData, calculator, out var resolved))
+        {
+            path = resolved.ResolvedPath;
+            soundNumber = resolved.SoundNumber;
+            multiplier = resolved.Multiplier;
+            SyncTrackedPath(soundData, path, soundNumber);
+            return true;
+        }
+
+        if (!string.IsNullOrWhiteSpace(knownScdPath))
+        {
+            path = knownScdPath.ToLowerInvariant().Trim();
+            SoundDataSafety.TryReadSoundData(soundData, out _, out soundNumber, out _);
+            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
+            SyncTrackedPath(soundData, path, soundNumber);
+            return true;
+        }
+
+        var ptr = (nint)soundData;
+        if (Tracked.TryGetValue(ptr, out var tracked) && !string.IsNullOrWhiteSpace(tracked.ScdPath))
+        {
+            path = tracked.ScdPath;
+            soundNumber = tracked.SoundNumber;
+            if (soundNumber == 0)
+            {
+                SoundDataSafety.TryReadSoundData(soundData, out _, out soundNumber, out _);
+            }
+
+            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
+            return true;
+        }
+
+        if (StreamingBgmTracker.TryResolvePendingPath(soundData, out path))
+        {
+            path = path.ToLowerInvariant();
+            SoundDataSafety.TryReadSoundData(soundData, out _, out soundNumber, out _);
+            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
+            var pendingMultiplier = StreamingBgmTracker.GetPendingMultiplier(path);
+            if (Math.Abs(pendingMultiplier - 1.0f) > 0.001f)
+            {
+                multiplier = pendingMultiplier;
+            }
+
+            SyncTrackedPath(soundData, path, soundNumber);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void SyncTrackedPath(SoundData* soundData, string path, uint soundNumber)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return;
+        }
+
+        var ptr = (nint)soundData;
+        if (Tracked.TryGetValue(ptr, out var tracked))
+        {
+            tracked.ScdPath = path;
+            tracked.SoundNumber = soundNumber;
+        }
+    }
+
+    /// <summary>
     /// Reset tracking when a SoundData node begins a new play (pooled one-shots such as UI SFX reuse pointers).
     /// </summary>
-    internal static void PrepareTrackedForPlay(SoundData* soundData, string scdPath, uint soundNumber)
+    internal static void PrepareTrackedForPlay(
+        SoundData* soundData,
+        string scdPath,
+        uint soundNumber,
+        float baseGameVolume = 0f
+    )
     {
         if (soundData == null || string.IsNullOrWhiteSpace(scdPath))
         {
@@ -84,7 +184,7 @@ internal static unsafe class SoundVolumeTracker
         {
             ScdPath = scdPath.ToLowerInvariant(),
             SoundNumber = soundNumber,
-            LastGameVolume = fieldVolume > 0.001f ? fieldVolume : 1.0f,
+            LastGameVolume = ResolveNativeGameVolume(baseGameVolume, fieldVolume),
             AwaitVolumeApply = fieldVolume <= 0.001f,
             LastWriteByPlugin = false,
             LastEffectiveVolume = 0f,
@@ -162,7 +262,7 @@ internal static unsafe class SoundVolumeTracker
             return;
         }
 
-        var effectiveVolume = Configuration.ClampToEngineCap(
+        var effectiveVolume = ClampToEngineCap(
             SoundVolumeHelper.ScaleVolume(gameVolume > 0.001f ? gameVolume : 1.0f, multiplier)
         );
 
@@ -405,7 +505,7 @@ internal static unsafe class SoundVolumeTracker
             {
                 ScdPath = scdPath,
                 SoundNumber = soundNumber,
-                LastGameVolume = fieldVolume > 0.001f ? fieldVolume : 1.0f,
+                LastGameVolume = ResolveNativeGameVolume(0f, fieldVolume),
                 AwaitVolumeApply = fieldVolume <= 0.001f,
             };
             return;
@@ -415,12 +515,20 @@ internal static unsafe class SoundVolumeTracker
         tracked.SoundNumber = soundNumber;
         if (fieldVolume > 0.001f && !tracked.LastWriteByPlugin)
         {
-            tracked.LastGameVolume = fieldVolume;
+            if (SoundVolumeHelper.TryGetActivePlayBaseVolume(out var playBase))
+            {
+                tracked.LastGameVolume = playBase;
+            }
+            else if (tracked.LastGameVolume <= 0.001f || fieldVolume >= 0.95f)
+            {
+                tracked.LastGameVolume = ResolveNativeGameVolume(0f, fieldVolume);
+            }
+
             tracked.AwaitVolumeApply = false;
         }
         else if (fieldVolume <= 0.001f)
         {
-            tracked.LastGameVolume = 1.0f;
+            tracked.LastGameVolume = ResolveNativeGameVolume(0f, fieldVolume);
             if (!(tracked.LastWriteByPlugin && tracked.LastEffectiveVolume > 0.001f))
             {
                 tracked.AwaitVolumeApply = true;
@@ -671,34 +779,99 @@ internal static unsafe class SoundVolumeTracker
 
         if (Tracked.TryGetValue((nint)soundData, out var tracked) && tracked.LastGameVolume > 0.001f)
         {
-            return Configuration.ClampToEngineCap(
+            return ClampToEngineCap(
                 SoundVolumeHelper.ScaleVolume(tracked.LastGameVolume, multiplier)
             );
         }
 
-        return Configuration.ClampToEngineCap(
+        return ClampToEngineCap(
             SoundVolumeHelper.ScaleVolume(InferGameVolume(fieldVolume, multiplier), multiplier)
         );
     }
 
     internal static void ApplyFieldVolume(SoundData* soundData, float effectiveVolume)
     {
-        if (ZoneTransitionGuard.ShouldSkipSoundDataWrites()
-            || !SoundDataSafety.IsValidForVolumeWrite(soundData))
+        ApplyEngineVolume(soundData, effectiveVolume);
+    }
+
+    /// <summary>
+    /// Apply linear gain to SoundData. Boosts (&gt;100%) use field-first writes because native SetVolume may clamp to 1.0.
+    /// </summary>
+    internal static void ApplyEngineVolume(
+        SoundData* soundData,
+        float effectiveVolume,
+        NativeSetVolumeDelegate? nativeSetVolume = null
+    )
+    {
+        if (ZoneTransitionGuard.ShouldSkipSoundDataWrites())
         {
             return;
         }
 
+        var engineVolume = ClampToEngineCap(effectiveVolume);
+        var isBoost = engineVolume > 1.001f;
+        if (!isBoost && !SoundDataSafety.IsValidForVolumeWrite(soundData))
+        {
+            return;
+        }
+
+        if (isBoost && !SoundDataSafety.IsValidForExtendedVolumeWrite(soundData))
+        {
+            if (!SoundDataSafety.IsValidForVolumeWrite(soundData))
+            {
+                return;
+            }
+        }
+
         try
         {
-            var engineVolume = Configuration.ClampToEngineCap(effectiveVolume);
-            soundData->Volume = engineVolume;
-            WriteFadeTarget(soundData, engineVolume);
+            if (isBoost)
+            {
+                TrySetBypassVolumeCategory(soundData);
+                WriteAllVolumeFields(soundData, engineVolume);
+                nativeSetVolume?.Invoke(soundData, engineVolume);
+                TrySetBypassVolumeCategory(soundData);
+                WriteAllVolumeFields(soundData, engineVolume);
+                return;
+            }
+
+            nativeSetVolume?.Invoke(soundData, engineVolume);
+            WriteAllVolumeFields(soundData, engineVolume);
         }
         catch (Exception ex)
         {
             Services.PluginLog.Verbose(ex, "SoundMixer: failed to apply SoundData volume");
         }
+    }
+
+    private static void WriteAllVolumeFields(SoundData* soundData, float engineVolume)
+    {
+        soundData->Volume = engineVolume;
+        WriteFloatField(soundData, VolumeCompanionOffset, engineVolume);
+        WriteFloatField(soundData, VolumeAuxOffsetA, engineVolume);
+        WriteFloatField(soundData, VolumeAuxOffsetB, engineVolume);
+    }
+
+    private static void TrySetBypassVolumeCategory(SoundData* soundData)
+    {
+        var categoryPtr = (nint)soundData + VolumeCategoryOffset;
+        if (!SoundDataSafety.IsReadable(categoryPtr, sizeof(byte)))
+        {
+            return;
+        }
+
+        soundData->VolumeCategory = SoundVolumeCategory.BypassVolumeRules;
+    }
+
+    private static void WriteFloatField(SoundData* soundData, int offset, float value)
+    {
+        var fieldPtr = (nint)soundData + offset;
+        if (!SoundDataSafety.IsReadable(fieldPtr, sizeof(float)))
+        {
+            return;
+        }
+
+        *(float*)fieldPtr = value;
     }
 
     internal static void EnforceActiveSound(
@@ -763,102 +936,52 @@ internal static unsafe class SoundVolumeTracker
         }
 
         var ptr = (nint)soundData;
+        if (!TryResolveEnforcement(soundData, calculator, out var path, out var soundNumber, out var multiplier))
+        {
+            return false;
+        }
+
         if (!Tracked.TryGetValue(ptr, out var tracked))
         {
-            return false;
+            PrepareTrackedForPlay(soundData, path, soundNumber);
+            if (!Tracked.TryGetValue(ptr, out tracked))
+            {
+                return false;
+            }
         }
 
-        if (IsUnsafeForVolumeEnforcement(tracked.ScdPath))
+        if (IsUnsafeForVolumeEnforcement(path))
         {
             Tracked.TryRemove(ptr, out _);
             return false;
         }
 
-        if (calculator.IsLikelyOneShotPath(tracked.ScdPath))
+        if (calculator.IsLikelyOneShotPath(path))
         {
             Tracked.TryRemove(ptr, out _);
             return false;
         }
 
-        float multiplier;
-        if (SoundEnforcement.TryResolve(soundData, calculator, out var resolved))
-        {
-            tracked.ScdPath = resolved.ResolvedPath;
-            tracked.SoundNumber = resolved.SoundNumber;
-            multiplier = resolved.Multiplier;
-        }
-        else if (StreamingBgmTracker.IsBgmOrMusicPath(tracked.ScdPath))
-        {
-            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(
-                calculator,
-                tracked.ScdPath,
-                tracked.SoundNumber
-            );
-        }
-        else
-        {
-            return false;
-        }
+        tracked.ScdPath = path;
+        tracked.SoundNumber = soundNumber;
+
         if (TryApplyMuteMultiplier(soundData, tracked, fieldVolume, multiplier, applyVolume))
         {
             return true;
         }
 
-        if (Math.Abs(multiplier - 1.0f) < 0.001f)
+        if (Math.Abs(multiplier - 1.0f) > 0.001f)
         {
-            if (!tracked.LastWriteByPlugin)
-            {
-                return false;
-            }
-
-            var restoreVolume = tracked.LastGameVolume > 0.001f ? tracked.LastGameVolume : fieldVolume;
-            if (applyVolume != null)
-            {
-                applyVolume(soundData, restoreVolume);
-            }
-            else
-            {
-                ApplyFieldVolume(soundData, restoreVolume);
-            }
-
-            Tracked.TryRemove(ptr, out _);
-            return true;
+            tracked.AwaitVolumeApply = false;
         }
 
-        if (ShouldPassthroughScaledVolume(soundData, fieldVolume))
-        {
-            ClearAwaitVolumeApplyIfStable(tracked, soundData, fieldVolume);
-            return false;
-        }
-
-        var gameVolume = ResolveBaseGameVolume(tracked, fieldVolume, multiplier);
-        if (gameVolume <= 0.001f)
-        {
-            return false;
-        }
-
-        var effective = Configuration.ClampToEngineCap(
-            SoundVolumeHelper.ScaleVolume(gameVolume, multiplier)
+        return TryWriteScaledFieldVolume(
+            soundData,
+            tracked,
+            fieldVolume,
+            multiplier,
+            applyVolume
         );
-
-        UpdateTrackedVolumeState(tracked, gameVolume, effective, multiplier);
-
-        if (Math.Abs(fieldVolume - effective) < 0.002f
-            && Math.Abs(ReadFadeTarget(soundData) - effective) < 0.002f)
-        {
-            return true;
-        }
-
-        if (applyVolume != null)
-        {
-            applyVolume(soundData, effective);
-        }
-        else
-        {
-            ApplyFieldVolume(soundData, effective);
-        }
-
-        return true;
     }
 
     internal static bool IsNativeFadeActive(SoundData* soundData, float fieldVolume)
@@ -932,26 +1055,13 @@ internal static unsafe class SoundVolumeTracker
         }
 
         var ptr = (nint)soundData;
-        var path = string.Empty;
-        var multiplier = 1.0f;
-
-        if (SoundEnforcement.TryResolve(soundData, calculator, out var resolved))
-        {
-            path = resolved.ResolvedPath;
-            soundNumber = resolved.SoundNumber;
-            multiplier = resolved.Multiplier;
-        }
-        else if (StreamingBgmTracker.TryResolvePendingPath(soundData, out var pendingBgmPath))
-        {
-            path = pendingBgmPath.ToLowerInvariant();
-            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
-            var pendingMultiplier = StreamingBgmTracker.GetPendingMultiplier(path);
-            if (Math.Abs(pendingMultiplier - 1.0f) > 0.001f)
-            {
-                multiplier = pendingMultiplier;
-            }
-        }
-        else
+        if (!TryResolveEnforcement(
+                soundData,
+                calculator,
+                out var path,
+                out soundNumber,
+                out var multiplier,
+                knownScdPath))
         {
             return false;
         }
@@ -994,12 +1104,93 @@ internal static unsafe class SoundVolumeTracker
             return true;
         }
 
-        if (ShouldPassthroughScaledVolume(soundData, fieldVolume))
+        var bypassFadeGuard = !string.IsNullOrWhiteSpace(knownScdPath) || multiplier > 1.001f;
+        if (bypassFadeGuard)
+        {
+            tracked.AwaitVolumeApply = false;
+        }
+
+        if (!bypassFadeGuard && ShouldPassthroughScaledVolume(soundData, fieldVolume))
         {
             ClearAwaitVolumeApplyIfStable(tracked, soundData, fieldVolume);
             return false;
         }
 
+        return TryWriteScaledFieldVolume(
+            soundData,
+            tracked,
+            fieldVolume,
+            multiplier,
+            applyVolume
+        );
+    }
+
+    internal static bool CommitScaledVolume(
+        SoundData* soundData,
+        VolumeCalculator calculator,
+        float multiplier,
+        string scdPath,
+        uint soundNumber,
+        ApplyVolumeDelegate? applyVolume,
+        float baseGameVolume = 0f
+    )
+    {
+        if (soundData == null
+            || string.IsNullOrWhiteSpace(scdPath)
+            || Math.Abs(multiplier - 1.0f) < 0.001f)
+        {
+            return false;
+        }
+
+        if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out var readNumber, out var fieldVolume)
+            || !isActive)
+        {
+            return false;
+        }
+
+        if (soundNumber == 0 && readNumber != 0)
+        {
+            soundNumber = readNumber;
+        }
+
+        scdPath = scdPath.ToLowerInvariant().Trim();
+        var ptr = (nint)soundData;
+        if (!Tracked.TryGetValue(ptr, out var tracked))
+        {
+            PrepareTrackedForPlay(soundData, scdPath, soundNumber, baseGameVolume);
+            if (!Tracked.TryGetValue(ptr, out tracked))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            tracked.ScdPath = scdPath;
+            tracked.SoundNumber = soundNumber;
+            if (baseGameVolume > 0.001f)
+            {
+                tracked.LastGameVolume = baseGameVolume;
+            }
+        }
+
+        tracked.AwaitVolumeApply = false;
+        return TryWriteScaledFieldVolume(
+            soundData,
+            tracked,
+            fieldVolume,
+            multiplier,
+            applyVolume
+        );
+    }
+
+    private static bool TryWriteScaledFieldVolume(
+        SoundData* soundData,
+        TrackedSoundVolume tracked,
+        float fieldVolume,
+        float multiplier,
+        ApplyVolumeDelegate? applyVolume
+    )
+    {
         var gameVolume = ResolveBaseGameVolume(tracked, fieldVolume, multiplier);
         if (gameVolume <= 0.001f)
         {
@@ -1008,7 +1199,7 @@ internal static unsafe class SoundVolumeTracker
 
         if (Math.Abs(multiplier - 1.0f) < 0.001f)
         {
-            if (!Tracked.TryGetValue(ptr, out tracked) || !tracked.LastWriteByPlugin)
+            if (!tracked.LastWriteByPlugin)
             {
                 return false;
             }
@@ -1023,14 +1214,28 @@ internal static unsafe class SoundVolumeTracker
                 ApplyFieldVolume(soundData, restoreVolume);
             }
 
-            Tracked.TryRemove(ptr, out _);
+            Tracked.TryRemove((nint)soundData, out _);
             return true;
         }
 
-        var effectiveVolume = Configuration.ClampToEngineCap(
+        var effectiveVolume = ClampToEngineCap(
             SoundVolumeHelper.ScaleVolume(gameVolume, multiplier)
         );
         UpdateTrackedVolumeState(tracked, gameVolume, effectiveVolume, multiplier);
+
+        if (!SoundDataSafety.TryReadSoundData(soundData, out _, out _, out var currentField))
+        {
+            currentField = 0f;
+        }
+
+        var needsBoostReassert = effectiveVolume > 1.001f && currentField < effectiveVolume - 0.05f;
+        if (!needsBoostReassert
+            && tracked.LastWriteByPlugin
+            && Math.Abs(tracked.LastEffectiveVolume - effectiveVolume) < 0.02f
+            && Math.Abs(currentField - effectiveVolume) < 0.05f)
+        {
+            return true;
+        }
 
         if (applyVolume != null)
         {
@@ -1038,7 +1243,7 @@ internal static unsafe class SoundVolumeTracker
         }
         else
         {
-            ApplyFieldVolume(soundData, effectiveVolume);
+            ApplyEngineVolume(soundData, effectiveVolume);
         }
 
         return true;
@@ -1098,7 +1303,7 @@ internal static unsafe class SoundVolumeTracker
         float multiplier
     )
     {
-        if (gameVolume > 0.001f)
+        if (tracked.LastGameVolume <= 0.001f && gameVolume > 0.001f)
         {
             tracked.LastGameVolume = gameVolume;
         }
@@ -1109,6 +1314,21 @@ internal static unsafe class SoundVolumeTracker
         tracked.AwaitVolumeApply = false;
     }
 
+    private static float ResolveNativeGameVolume(float explicitBase, float fieldVolume)
+    {
+        if (explicitBase > 0.001f)
+        {
+            return explicitBase;
+        }
+
+        if (SoundVolumeHelper.TryGetActivePlayBaseVolume(out var playBase))
+        {
+            return playBase;
+        }
+
+        return fieldVolume > 0.001f ? fieldVolume : 1.0f;
+    }
+
     private static float ResolveBaseGameVolume(
         TrackedSoundVolume tracked,
         float fieldVolume,
@@ -1117,6 +1337,14 @@ internal static unsafe class SoundVolumeTracker
     {
         if (tracked.LastGameVolume > 0.001f)
         {
+            if (tracked.LastWriteByPlugin
+                && tracked.LastAppliedMultiplier > 0.001f
+                && (Math.Abs(tracked.LastGameVolume - tracked.LastAppliedMultiplier) < 0.05f
+                    || Math.Abs(tracked.LastGameVolume - tracked.LastEffectiveVolume) < 0.05f))
+            {
+                return 1.0f;
+            }
+
             return tracked.LastGameVolume;
         }
 
@@ -1160,13 +1388,7 @@ internal static unsafe class SoundVolumeTracker
 
     private static void WriteFadeTarget(SoundData* soundData, float effectiveVolume)
     {
-        var fadeTargetPtr = (nint)soundData + VolumeFadeTargetOffset;
-        if (!SoundDataSafety.IsReadable(fadeTargetPtr, sizeof(float)))
-        {
-            return;
-        }
-
-        *(float*)fadeTargetPtr = effectiveVolume;
+        WriteFloatField(soundData, VolumeFadeTargetOffset, effectiveVolume);
     }
 
     private static float ReadFadeTarget(SoundData* soundData)

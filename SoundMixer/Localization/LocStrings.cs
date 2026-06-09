@@ -71,6 +71,12 @@ internal static class LocStrings
         [DebugManualControlUnsafeTip] =
             "不安全调试模式：行动守卫已禁用，错误组合可能导致游戏崩溃（CTD）。\n"
             + "仅在需要单独测试 hook 时短暂开启；插件启动、禁用插件或关闭窗口将自动恢复自动管理。",
+        [DebugExtremeVolume] = "极限音量调试 (最高 10000%)",
+        [DebugExtremeVolumeTip] =
+            "仅用于实验：滑条与引擎应用上限提升至 100 倍（10000%）。\n"
+            + "极高音量可能失真、爆音或导致 CTD；请戴耳机时格外小心。\n"
+            + "关闭后恢复默认 350% 听感钳制。",
+        [DebugExtremeVolumeActiveNote] = "极限音量已开启：分组/单独路径最高可设 10000%，引擎写入不再钳制在 350%。",
         [DebugHookAllOn] = "全部启用",
         [DebugHookAllOff] = "全部禁用",
         [DebugHookApply] = "重新应用",
@@ -324,7 +330,15 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.3.1\n"
+            "v0.2.3.2\n"
+            + "· 修复 mod 音乐路径分裂：短路径 sound/*.scd 自动别名到 visual mod 完整路径，监听 log 与强制音量使用同一倍率\n"
+            + "· Scds 缓存保留更长 mod 路径；LoadSoundFile 不再用短 FileName 覆盖 GetResource 登记的完整路径\n"
+            + "· 修复音量基准污染：LastGameVolume 记录原生播放音量，低音量开播后仍可正确放大到 >100%\n"
+            + "· >100% 放大：字段优先写入、BypassVolumeRules、强制刷新时跳过淡入等待\n"
+            + "· 调试页：可选极限音量调试（引擎写入上限 10000%）\n"
+            + "· PlaySound（手动开启时）：播后从 SoundData 升级路径；含 /music/ 的 mod 路径走 ForceRefresh；放大播放使用 BypassVolumeRules\n"
+            + "\n"
+            + "v0.2.3.1\n"
             + "· 移除安全模式开关：路径解析与强制音量始终走安全路径（禁止 ISoundData.GetFileName）\n"
             + "· 修复插件加载瞬间 CTD：SoundEnforcement 统一 TryResolveSafeSoundPath，关闭安全模式时不再回退 GetFileName\n"
             + "· 修复嵌套脚步声子组（不开 PlaySound hook）：SoundEnforcement 与监听 log 同源；父子叠乘倍率\n"
@@ -532,6 +546,7 @@ internal static class LocStrings
         [VolumeSilent] = "静音",
         [VolumeRangeNormal] = "0–200%：听感变化最明显",
         [VolumeRangeExpert] = "200–350%：仍有提升，但幅度变小",
+        [VolumeRangeDebugExtreme] = "350%–10000%：调试极限模式，听感与稳定性不保证",
         [VolumeAtCap] = "已达实测引擎听感上限（约 350%）",
         [VolumeLinearTip] = "线性 {0}%  约合 {1}",
         [VolumeAbove100Tip] = "音量已放大至 100% 以上 ({0})",
@@ -615,6 +630,12 @@ internal static class LocStrings
         [DebugManualControlUnsafeTip] =
             "Unsafe debug mode: action guards are disabled; bad hook combinations may crash the game (CTD).\n"
             + "Use only for brief isolated tests. Plugin load, plugin disable, or window close restores auto management.",
+        [DebugExtremeVolume] = "Extreme volume debug (max 10000%)",
+        [DebugExtremeVolumeTip] =
+            "Experimental only: raises slider and engine apply cap to 100× (10000%).\n"
+            + "Very high gain may clip, distort, or CTD — use headphones with caution.\n"
+            + "Turn off to restore the default 350% audible cap.",
+        [DebugExtremeVolumeActiveNote] = "Extreme volume active: groups/paths can reach 10000%; engine writes are no longer capped at 350%.",
         [DebugHookAllOn] = "Enable all",
         [DebugHookAllOff] = "Disable all",
         [DebugHookApply] = "Re-apply",
@@ -868,7 +889,15 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.3.1\n"
+            "v0.2.3.2\n"
+            + "· Fix mod music path split: auto-alias short sound/*.scd to full visual mod path; monitor log and enforcement share one multiplier\n"
+            + "· Scds cache keeps longer mod path; LoadSoundFile no longer overwrites GetResource full path with short FileName\n"
+            + "· Fix volume baseline pollution: LastGameVolume tracks native play volume so >100% boost works after a quiet start\n"
+            + "· >100% boost: field-first ApplyEngineVolume, BypassVolumeRules, skip fade-in wait during enforcement\n"
+            + "· Debug tab: optional extreme volume debug (up to 10000% engine cap)\n"
+            + "· PlaySound when enabled: post-play path upgrade from SoundData; mod /music/ paths use ForceRefresh; boost plays with BypassVolumeRules\n"
+            + "\n"
+            + "v0.2.3.1\n"
             + "· Removed Safe Mode toggle: path resolve and enforcement always use safe reads (no ISoundData.GetFileName)\n"
             + "· Fix load-time CTD: SoundEnforcement uses TryResolveSafeSoundPath only; no GetFileName fallback when Safe Mode was off\n"
             + "· Fix nested footstep child groups without PlaySound hook: SoundEnforcement matches monitor log; stacked parent+child multipliers\n"
@@ -1075,6 +1104,7 @@ internal static class LocStrings
         [VolumeSilent] = "Silent",
         [VolumeRangeNormal] = "0–200%: most perceptible change",
         [VolumeRangeExpert] = "200–350%: still louder, diminishing returns",
+        [VolumeRangeDebugExtreme] = "350%–10000%: debug extreme mode; perception and stability not guaranteed",
         [VolumeAtCap] = "At audible engine cap (~350%)",
         [VolumeLinearTip] = "Linear {0}% ≈ {1}",
         [VolumeAbove100Tip] = "Boosted above 100% ({0})",

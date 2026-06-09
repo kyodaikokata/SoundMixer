@@ -52,6 +52,32 @@ public partial class MainWindow
 
         ImGui.Spacing();
 
+        var extremeVolume = dbg.DebugExtremeVolume;
+        if (ImGui.Checkbox(L(DebugExtremeVolume), ref extremeVolume))
+        {
+            dbg.DebugExtremeVolume = extremeVolume;
+            Plugin.BindEngineCapClamp();
+            Plugin.VolumeCalculator.ClearCache();
+            Plugin.Config.Save();
+            Plugin.Api.ApplyLiveEffectiveState();
+            if (Plugin.IsEffectivelyEnabled)
+            {
+                Plugin.Filter.RefreshAllActiveSounds();
+            }
+        }
+
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.SetTooltip(L(DebugExtremeVolumeTip));
+        }
+
+        if (dbg.DebugExtremeVolume)
+        {
+            ImGui.TextColored(new Vector4(1f, 0.45f, 0.45f, 1f), L(DebugExtremeVolumeActiveNote));
+        }
+
+        ImGui.Spacing();
+
         if (ImGui.Button(L(DebugHookAllOn)))
         {
             dbg.SetAll(true);

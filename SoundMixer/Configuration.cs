@@ -82,16 +82,30 @@ public class Configuration : IPluginConfiguration
 
     public const float NormalMaxVolume = 2.0f;
 
-    /// <summary>实测引擎听感上限约 300%–350%，取 350% 作为应用钳制值。</summary>
+    /// <summary>实测引擎听感上限约 300%–350%，取 350% 作为默认应用钳制值。</summary>
     public const float EngineAudibleCap = 3.5f;
+
+    /// <summary>Debug tab extreme volume mode: up to 10000% linear gain.</summary>
+    public const float DebugExtremeMaxVolume = 100f;
 
     public const float ExpertMaxVolume = EngineAudibleCap;
 
-    public float GetMaxVolume() => ExpertMode ? ExpertMaxVolume : NormalMaxVolume;
+    public float ResolveEngineCap() =>
+        HookDebug.DebugExtremeVolume ? DebugExtremeMaxVolume : EngineAudibleCap;
+
+    public float GetMaxVolume()
+    {
+        if (HookDebug.DebugExtremeVolume)
+        {
+            return DebugExtremeMaxVolume;
+        }
+
+        return ExpertMode ? ExpertMaxVolume : NormalMaxVolume;
+    }
 
     public static float ClampToUiRange(float volume, float maxVolume) => Math.Clamp(volume, 0f, maxVolume);
 
-    public static float ClampToEngineCap(float volume) => Math.Clamp(volume, 0f, EngineAudibleCap);
+    public float ClampVolumeToEngineCap(float volume) => Math.Clamp(volume, 0f, ResolveEngineCap());
 
     internal Dictionary<string, Glob> GetCachedGlobs()
     {

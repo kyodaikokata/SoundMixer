@@ -8,6 +8,8 @@ internal readonly struct PlayContext
     internal string Path { get; init; }
     internal uint SoundNumber { get; init; }
     internal float Multiplier { get; init; }
+    /// <summary>Native play volume before plugin scaling (usually 1.0).</summary>
+    internal float GameVolume { get; init; }
 }
 
 internal static unsafe class SoundVolumeHelper
@@ -29,23 +31,37 @@ internal static unsafe class SoundVolumeHelper
     [ThreadStatic]
     private static bool s_setVolumeCalledThisPlay;
 
-    internal static void BeginPlay(string path, uint soundNumber, float multiplier)
+    internal static void BeginPlay(string path, uint soundNumber, float multiplier, float gameVolume = 1.0f)
     {
         s_setVolumeCalledThisPlay = false;
-
-        if (multiplier is > 0.999f and < 1.001f)
-        {
-            return;
-        }
+        gameVolume = gameVolume <= 0.001f ? 1.0f : gameVolume;
 
         s_playContext = new PlayContext
         {
             Path = path,
             SoundNumber = soundNumber,
             Multiplier = multiplier,
+            GameVolume = gameVolume,
         };
 
+        if (multiplier is > 0.999f and < 1.001f)
+        {
+            return;
+        }
+
         PendingMultipliers[MakeKey(path, soundNumber)] = multiplier;
+    }
+
+    internal static bool TryGetActivePlayBaseVolume(out float gameVolume)
+    {
+        if (s_playContext is { } ctx)
+        {
+            gameVolume = ctx.GameVolume > 0.001f ? ctx.GameVolume : 1.0f;
+            return true;
+        }
+
+        gameVolume = 1.0f;
+        return false;
     }
 
     internal static void EndPlay()
