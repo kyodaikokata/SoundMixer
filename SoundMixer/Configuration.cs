@@ -9,7 +9,7 @@ namespace SoundMixer;
 [Serializable]
 public class Configuration : IPluginConfiguration
 {
-    public int Version { get; set; } = 8;
+    public int Version { get; set; } = 9;
 
     public bool Enabled { get; set; } = true;
     public bool ExpertMode { get; set; } = false;
@@ -141,7 +141,11 @@ public class SoundGroup
     public string Description { get; set; } = string.Empty;
     public string? ParentId { get; set; }
     public float GroupVolume { get; set; } = 1.0f;
+    /// <summary>Legacy; kept in sync with <see cref="ScaleByFather"/> for preset round-trip.</summary>
     public bool ApplyToChildren { get; set; } = true;
+
+    /// <summary>When true, sounds matching this group also multiply ancestor group volumes.</summary>
+    public bool ScaleByFather { get; set; } = true;
     public List<string> SoundPaths { get; set; } = new();
     public List<string> PathPatterns { get; set; } = new();
     public string Icon { get; set; } = "";

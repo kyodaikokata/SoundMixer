@@ -19,8 +19,8 @@
       "sound"
     ],
     "DalamudApiLevel": 15,
-    "AssemblyVersion": "0.2.3.1",
-    "Changelog": "0.2.3.1: Safe path always on (Safe Mode removed). Fix load CTD and nested footstep child groups; SoundEnforcement unified. See in-app changelog.",
+    "AssemblyVersion": "0.2.3.2",
+    "Changelog": "0.2.3.2: Fix mod music path alias and volume boost baseline; >100% enforcement; extreme volume debug. See in-app changelog.",
     "LastUpdate": "0",
     "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
     "DownloadLinkInstall": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-global.zip",

@@ -332,7 +332,7 @@ internal sealed class SoundMixerApi
         }
 
         var volume = group.GroupVolume;
-        if (group.ApplyToChildren && group.ParentId != null)
+        if (group.ScaleByFather && group.ParentId != null)
         {
             volume *= ResolveEffectiveGroupVolume(group.ParentId);
         }

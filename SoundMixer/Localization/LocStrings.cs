@@ -248,6 +248,8 @@ internal static class LocStrings
         [GroupSyncColor] = "同步颜色",
         [GroupSyncColorTip] = "将当前「显示颜色」同步为父级分组当前正在使用的颜色（根级取「分组颜色」，子级取「显示颜色」）",
         [GroupColorChildHint] = "子分组不支持自定义颜色",
+        [GroupScaleByFather] = "继承父组音量",
+        [GroupScaleByFatherTip] = "勾选时本分组匹配的音效会叠乘父级及祖先分组音量；取消后仅使用本分组自身音量\n默认开启",
         [GroupHideFromMonitor] = "从监听日志隐藏此分组",
         [GroupHideFromMonitorTip] = "隐藏匹配此分组（含子分组）的音效，不在上方实时监听列表中显示\n默认关闭",
 
@@ -330,7 +332,15 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.3.2\n"
+            "v0.2.3.4\n"
+            + "· 子组新增「继承父组音量」(ScaleByFather)，默认开启；取消勾选后仅使用本组音量，不受父级影响\n"
+            + "· 配置迁移 v9（从旧版 ApplyToChildren 字段继承）\n"
+            + "\n"
+            + "v0.2.3.3\n"
+            + "· 修复父组音量不随子组生效：子组 glob 匹配时沿祖先链叠乘父组音量（战斗/环境等无路径规则的父组）\n"
+            + "· 强制音量、监听 log 与分组树「实际音量」使用同一套叠乘逻辑\n"
+            + "\n"
+            + "v0.2.3.2\n"
             + "· 修复 mod 音乐路径分裂：短路径 sound/*.scd 自动别名到 visual mod 完整路径，监听 log 与强制音量使用同一倍率\n"
             + "· Scds 缓存保留更长 mod 路径；LoadSoundFile 不再用短 FileName 覆盖 GetResource 登记的完整路径\n"
             + "· 修复音量基准污染：LastGameVolume 记录原生播放音量，低音量开播后仍可正确放大到 >100%\n"
@@ -807,6 +817,8 @@ internal static class LocStrings
         [GroupSyncColor] = "Sync Color",
         [GroupSyncColorTip] = "Copy the parent's current display color into this sub-group (root parent uses Group Color; nested parent uses Display Color).",
         [GroupColorChildHint] = "Sub-groups cannot use custom colors.",
+        [GroupScaleByFather] = "Scale by parent volume",
+        [GroupScaleByFatherTip] = "When on, sounds matching this group also multiply parent and ancestor group volumes.\nWhen off, only this group's own volume applies.\nOn by default.",
         [GroupHideFromMonitor] = "Hide from monitor log",
         [GroupHideFromMonitorTip] = "Hide sounds matching this group (including sub-groups) from the live monitor above.\nOff by default.",
 
@@ -889,7 +901,15 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.3.2\n"
+            "v0.2.3.4\n"
+            + "· Child groups: ScaleByFather (inherit parent volume, on by default); off = only this group's volume applies\n"
+            + "· Config migration v9 from legacy ApplyToChildren\n"
+            + "\n"
+            + "v0.2.3.3\n"
+            + "· Fix parent group volume not applying to child-matched sounds: ancestor chain multiplies parent volumes (battle/environment parents with no globs)\n"
+            + "· Enforcement, monitor log, and group-tree effective % use the same stacked math\n"
+            + "\n"
+            + "v0.2.3.2\n"
             + "· Fix mod music path split: auto-alias short sound/*.scd to full visual mod path; monitor log and enforcement share one multiplier\n"
             + "· Scds cache keeps longer mod path; LoadSoundFile no longer overwrites GetResource full path with short FileName\n"
             + "· Fix volume baseline pollution: LastGameVolume tracks native play volume so >100% boost works after a quiet start\n"

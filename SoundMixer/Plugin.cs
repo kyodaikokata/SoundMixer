@@ -78,6 +78,7 @@ public class Plugin : IDalamudPlugin
         MigrateSoundBlacklistEntries();
         MigratePlaySoundDisabledByDefault();
         MigrateRemoveSafeModeSetting();
+        MigrateScaleByFather();
         PresetManager.Initialize(Config);
         DefaultGroupLocalization.Apply(Config);
 
@@ -346,6 +347,23 @@ public class Plugin : IDalamudPlugin
         }
 
         Config.Version = 8;
+        Config.Save();
+    }
+
+    private void MigrateScaleByFather()
+    {
+        if (Config.Version >= 9)
+        {
+            return;
+        }
+
+        foreach (var group in Config.Groups)
+        {
+            group.ScaleByFather = group.ApplyToChildren;
+            group.ApplyToChildren = group.ScaleByFather;
+        }
+
+        Config.Version = 9;
         Config.Save();
     }
 

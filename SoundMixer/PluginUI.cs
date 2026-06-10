@@ -1300,6 +1300,23 @@ public partial class MainWindow : Window
             DrawGroupColorPicker(group);
         }
 
+        if (!string.IsNullOrWhiteSpace(group.ParentId))
+        {
+            var scaleByFather = group.ScaleByFather;
+            if (ImGui.Checkbox(L(GroupScaleByFather), ref scaleByFather))
+            {
+                group.ScaleByFather = scaleByFather;
+                group.ApplyToChildren = scaleByFather;
+                SaveGroupChanges();
+                RefreshGroupVolumeChain(group.Id);
+            }
+
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip(L(GroupScaleByFatherTip));
+            }
+        }
+
         var hideFromMonitor = group.HideFromMonitorLog;
         if (ImGui.Checkbox(L(GroupHideFromMonitor), ref hideFromMonitor))
         {

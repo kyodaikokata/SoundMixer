@@ -333,8 +333,9 @@ public class VolumeCalculator
     }
 
     /// <summary>
-    /// Multiply every group whose own glob/path rules match (same semantics as refresh / SoundBelongsToGroupTree).
-    /// ResolveGroupId alone only picked one deepest group and missed parent×child stacking on indexed paths.
+    /// Multiply every group whose own glob/path rules match, then walk ancestors when
+    /// <see cref="SoundGroup.ScaleByFather"/> is set (same chain math as UI GetEffectiveGroupVolume).
+    /// Parent folders without globs (e.g. 战斗 / 环境) only affect sounds via this ancestor pass.
     /// </summary>
     private float CalculateStackedGroupVolume(
         string soundPath,
@@ -345,7 +346,7 @@ public class VolumeCalculator
         anyMatchedGroupId = null;
         deepestMatchedGroupId = null;
         var volume = 1.0f;
-        var any = false;
+        var matchedIds = new List<string>();
         var deepestDepth = -1;
 
         foreach (var group in Groups)
@@ -356,7 +357,7 @@ public class VolumeCalculator
             }
 
             volume *= group.GroupVolume;
-            any = true;
+            matchedIds.Add(group.Id);
             anyMatchedGroupId ??= group.Id;
 
             var depth = GetGroupDepth(group.Id);
@@ -367,7 +368,51 @@ public class VolumeCalculator
             }
         }
 
-        return any ? volume : 1.0f;
+        if (matchedIds.Count == 0)
+        {
+            return 1.0f;
+        }
+
+        var appliedAncestors = new HashSet<string>(matchedIds);
+        foreach (var matchedId in matchedIds)
+        {
+            volume *= CollectAncestorVolumeMultiplier(matchedId, appliedAncestors);
+        }
+
+        return volume;
+    }
+
+    /// <summary>
+    /// Parent groups with no path rules still scale child-matched sounds when ScaleByFather is enabled.
+    /// </summary>
+    private float CollectAncestorVolumeMultiplier(string groupId, HashSet<string> appliedAncestors)
+    {
+        var multiplier = 1.0f;
+        var current = Groups.FirstOrDefault(g => g.Id == groupId);
+
+        while (current?.ParentId != null)
+        {
+            if (!current.ScaleByFather)
+            {
+                break;
+            }
+
+            var parent = Groups.FirstOrDefault(g => g.Id == current.ParentId);
+            if (parent == null)
+            {
+                break;
+            }
+
+            if (!appliedAncestors.Contains(parent.Id))
+            {
+                multiplier *= parent.GroupVolume;
+                appliedAncestors.Add(parent.Id);
+            }
+
+            current = parent;
+        }
+
+        return multiplier;
     }
 
     private int GetGroupDepth(string groupId)

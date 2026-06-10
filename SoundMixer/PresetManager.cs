@@ -204,6 +204,7 @@ internal static class PresetManager
             ParentId = group.ParentId,
             GroupVolume = group.GroupVolume,
             ApplyToChildren = group.ApplyToChildren,
+            ScaleByFather = group.ScaleByFather,
             SoundPaths = new List<string>(group.SoundPaths),
             PathPatterns = new List<string>(group.PathPatterns),
             Icon = group.Icon,

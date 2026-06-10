@@ -239,6 +239,8 @@ internal static class Loc
         internal const string GroupSyncColor = "Group.SyncColor";
         internal const string GroupSyncColorTip = "Group.SyncColor.Tip";
         internal const string GroupColorChildHint = "Group.Color.ChildHint";
+        internal const string GroupScaleByFather = "Group.ScaleByFather";
+        internal const string GroupScaleByFatherTip = "Group.ScaleByFather.Tip";
         internal const string GroupHideFromMonitor = "Group.HideFromMonitor";
         internal const string GroupHideFromMonitorTip = "Group.HideFromMonitor.Tip";
 

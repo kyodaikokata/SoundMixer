@@ -19,8 +19,8 @@
       "sound"
     ],
     "DalamudApiLevel": 15,
-    "AssemblyVersion": "0.2.3.1",
-    "Changelog": "0.2.3.1: 移除安全模式，始终安全路径；修复加载 CTD 与嵌套脚步声子组；SoundEnforcement 统一。详见游戏内更新日志。",
+    "AssemblyVersion": "0.2.3.2",
+    "Changelog": "0.2.3.2: 修复 mod 音乐路径分裂与音量放大基准；>100% 强制刷新优化；调试页极限音量。详见游戏内更新日志。",
     "LastUpdate": "0",
     "RepoUrl": "https://github.com/kyodaikokata/SoundMixer",
     "DownloadLinkInstall": "https://raw.githubusercontent.com/kyodaikokata/KKT-Catalog/main/plugins/SoundMixer/latest-cn.zip",
