@@ -14,6 +14,7 @@ public class VolumeCalculator
     private Dictionary<string, float> VolumeCache { get; } = new();
     private EffectiveSnapshot? _effectiveSnapshot;
     private Dictionary<string, Glob>? _effectiveGlobs;
+    private bool? _requiresAnyVolumeScaling;
 
     public VolumeCalculator(Configuration config)
     {
@@ -30,6 +31,40 @@ public class VolumeCalculator
     public void ClearCache()
     {
         VolumeCache.Clear();
+        _requiresAnyVolumeScaling = null;
+    }
+
+    /// <summary>
+    /// True when any effective group or per-sound volume differs from 100%.
+    /// Used to skip list scans and volume hooks when the plugin is enabled but neutral.
+    /// </summary>
+    internal bool RequiresAnyVolumeScaling()
+    {
+        _requiresAnyVolumeScaling ??= ComputeRequiresAnyVolumeScaling();
+        return _requiresAnyVolumeScaling.Value;
+    }
+
+    private bool ComputeRequiresAnyVolumeScaling()
+    {
+        const float unityEpsilon = 0.001f;
+
+        foreach (var volume in IndividualVolumes.Values)
+        {
+            if (Math.Abs(volume - 1.0f) > unityEpsilon)
+            {
+                return true;
+            }
+        }
+
+        foreach (var group in Groups)
+        {
+            if (Math.Abs(group.GroupVolume - 1.0f) > unityEpsilon)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private IReadOnlyList<SoundGroup> Groups => _effectiveSnapshot?.Groups ?? Config.Groups;

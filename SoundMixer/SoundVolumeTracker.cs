@@ -73,6 +73,20 @@ internal static unsafe class SoundVolumeTracker
             return false;
         }
 
+        var ptr = (nint)soundData;
+        if (Tracked.TryGetValue(ptr, out var tracked) && !string.IsNullOrWhiteSpace(tracked.ScdPath))
+        {
+            path = tracked.ScdPath;
+            soundNumber = tracked.SoundNumber;
+            if (soundNumber == 0)
+            {
+                SoundDataSafety.TryReadSoundData(soundData, out _, out soundNumber, out _);
+            }
+
+            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
+            return true;
+        }
+
         if (SoundEnforcement.TryResolve(soundData, calculator, out var resolved))
         {
             path = resolved.ResolvedPath;
@@ -88,20 +102,6 @@ internal static unsafe class SoundVolumeTracker
             SoundDataSafety.TryReadSoundData(soundData, out _, out soundNumber, out _);
             multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
             SyncTrackedPath(soundData, path, soundNumber);
-            return true;
-        }
-
-        var ptr = (nint)soundData;
-        if (Tracked.TryGetValue(ptr, out var tracked) && !string.IsNullOrWhiteSpace(tracked.ScdPath))
-        {
-            path = tracked.ScdPath;
-            soundNumber = tracked.SoundNumber;
-            if (soundNumber == 0)
-            {
-                SoundDataSafety.TryReadSoundData(soundData, out _, out soundNumber, out _);
-            }
-
-            multiplier = SoundVolumeHelper.GetEnforcementMultiplier(calculator, path, soundNumber);
             return true;
         }
 
@@ -436,6 +436,9 @@ internal static unsafe class SoundVolumeTracker
 
         return false;
     }
+
+    internal static bool IsTracked(SoundData* soundData) =>
+        soundData != null && Tracked.ContainsKey((nint)soundData);
 
     /// <summary>
     /// Mount-loop and blacklist paths must not receive per-frame enforcement or native SetVolume.

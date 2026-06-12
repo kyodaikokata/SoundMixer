@@ -332,7 +332,17 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.3.4\n"
+            "v0.2.3.7\n"
+            + "· 性能：SetVolume/GetVolume 在已跟踪或全部分组 100% 时跳过路径解析；活跃链表每 2 帧扫描（跟踪 enforcement 仍每帧）；去掉链表内重复跟踪刷新；降低 prune/监听维护频率\n"
+            + "\n"
+            + "v0.2.3.6\n"
+            + "· 脚步声全表补刷间隔改为每 10 帧（原 3 帧）\n"
+            + "\n"
+            + "v0.2.3.5\n"
+            + "· 性能：活跃 SoundData 链表每帧单次遍历（原 3 次）；复用 HashSet；节点 enforcement 缓存；脚步声每 3 帧刷新\n"
+            + "· 换区/清除缓存/分组音量刷新时使 enforcement 缓存失效\n"
+            + "\n"
+            + "v0.2.3.4\n"
             + "· 子组新增「继承父组音量」(ScaleByFather)，默认开启；取消勾选后仅使用本组音量，不受父级影响\n"
             + "· 配置迁移 v9（从旧版 ApplyToChildren 字段继承）\n"
             + "\n"
@@ -901,7 +911,17 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.3.4\n"
+            "v0.2.3.7\n"
+            + "· Performance: SetVolume/GetVolume skip path resolve when tracked or all volumes 100%; active list every 2 frames (tracked enforce every frame); no duplicate tracked pass in list; lower prune/monitor maintenance rate\n"
+            + "\n"
+            + "v0.2.3.6\n"
+            + "· Footstep active-list enforce interval: every 10 frames (was 3)\n"
+            + "\n"
+            + "v0.2.3.5\n"
+            + "· Performance: one active SoundData pass per frame (was 3); reused visit HashSet; per-node enforce cache; footstep enforce every 3 frames\n"
+            + "· Enforce cache invalidated on zone change, clear cache, and group volume refresh\n"
+            + "\n"
+            + "v0.2.3.4\n"
             + "· Child groups: ScaleByFather (inherit parent volume, on by default); off = only this group's volume applies\n"
             + "· Config migration v9 from legacy ApplyToChildren\n"
             + "\n"

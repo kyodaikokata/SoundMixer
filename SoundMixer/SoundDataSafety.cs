@@ -13,6 +13,12 @@ internal static unsafe class SoundDataSafety
     /// <summary>Covers SoundData.Volume (0x60) through VolumeCategory (0xB4) for boost writes.</summary>
     private const int MinSoundDataVolumeFieldBytes = 0xB8;
     private static readonly int PointerSize = IntPtr.Size;
+
+    [ThreadStatic]
+    private static HashSet<nint>? s_visitScratch;
+
+    [ThreadStatic]
+    private static int s_visitScratchDepth;
     private const uint MemCommit = 0x1000;
     private const uint PageNoAccess = 0x01;
     private const uint PageGuard = 0x100;
@@ -216,52 +222,76 @@ internal static unsafe class SoundDataSafety
             return;
         }
 
-        var visited = new HashSet<nint>();
-        var count = 0;
-        ISoundData* node = (ISoundData*)listHead;
-
-        while (node != null && count < maxNodes)
+        var rentedNested = false;
+        HashSet<nint> visited;
+        if (s_visitScratchDepth == 0)
         {
-            var nodePtr = (nint)node;
-            if (!visited.Add(nodePtr))
-            {
-                Services.PluginLog.Warning(
-                    $"SoundMixer: cycle detected in sound list ({listName ?? "unknown"})"
-                );
-                break;
-            }
+            visited = s_visitScratch ??= new HashSet<nint>(512);
+            visited.Clear();
+        }
+        else
+        {
+            visited = new HashSet<nint>(256);
+            rentedNested = true;
+        }
 
-            if (!IsReadable(nodePtr))
-            {
-                break;
-            }
+        s_visitScratchDepth++;
+        try
+        {
+            var count = 0;
+            ISoundData* node = (ISoundData*)listHead;
 
-            try
+            while (node != null && count < maxNodes)
             {
-                if (!visitor((SoundData*)node))
+                var nodePtr = (nint)node;
+                if (!visited.Add(nodePtr))
+                {
+                    Services.PluginLog.Warning(
+                        $"SoundMixer: cycle detected in sound list ({listName ?? "unknown"})"
+                    );
+                    break;
+                }
+
+                if (!IsReadable(nodePtr))
                 {
                     break;
                 }
-            }
-            catch (Exception ex)
-            {
-                Services.PluginLog.Verbose(ex, "SoundMixer: skipped invalid SoundData node");
+
+                try
+                {
+                    if (!visitor((SoundData*)node))
+                    {
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Services.PluginLog.Verbose(ex, "SoundMixer: skipped invalid SoundData node");
+                }
+
+                count++;
+                if (!TryGetNext(node, out var next))
+                {
+                    break;
+                }
+
+                node = next;
             }
 
-            count++;
-            if (!TryGetNext(node, out var next))
+            if (count >= maxNodes)
             {
-                break;
+                Services.PluginLog.Warning(
+                    $"SoundMixer: sound list visit hit node limit ({maxNodes}, {listName ?? "unknown"})"
+                );
             }
-
-            node = next;
         }
-
-        if (count >= maxNodes)
+        finally
         {
-            Services.PluginLog.Warning(
-                $"SoundMixer: sound list visit hit node limit ({maxNodes}, {listName ?? "unknown"})"
-            );
+            s_visitScratchDepth--;
+            if (rentedNested)
+            {
+                visited.Clear();
+            }
         }
     }
 }
