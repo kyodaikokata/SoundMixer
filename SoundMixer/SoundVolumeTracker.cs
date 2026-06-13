@@ -369,6 +369,34 @@ internal static unsafe class SoundVolumeTracker
         }
     }
 
+    internal static void ClearBgmTracking()
+    {
+        foreach (var (ptr, tracked) in Tracked.ToArray())
+        {
+            if (StreamingBgmTracker.IsBgmOrMusicPath(tracked.ScdPath))
+            {
+                Tracked.TryRemove(ptr, out _);
+            }
+        }
+    }
+
+    internal static void ReleaseBgmNode(SoundData* soundData)
+    {
+        if (soundData == null)
+        {
+            return;
+        }
+
+        var ptr = (nint)soundData;
+        if (Tracked.TryGetValue(ptr, out var tracked)
+            && StreamingBgmTracker.IsBgmOrMusicPath(tracked.ScdPath))
+        {
+            Tracked.TryRemove(ptr, out _);
+        }
+
+        StreamingBgmTracker.NotifySoundReleased(soundData);
+    }
+
     internal static void UntrackForOneShot(SoundData* soundData)
     {
         if (soundData == null)
@@ -978,6 +1006,12 @@ internal static unsafe class SoundVolumeTracker
             tracked.AwaitVolumeApply = false;
         }
 
+        if (ShouldPassthroughScaledVolume(soundData, fieldVolume))
+        {
+            ClearAwaitVolumeApplyIfStable(tracked, soundData, fieldVolume);
+            return false;
+        }
+
         return TryWriteScaledFieldVolume(
             soundData,
             tracked,
@@ -1012,7 +1046,9 @@ internal static unsafe class SoundVolumeTracker
             if (!SoundDataSafety.TryReadSoundData(soundData, out var isActive, out _, out _)
                 || !isActive)
             {
-                if (!IsUnsafeForVolumeEnforcement(tracked.ScdPath)
+                var isBgm = StreamingBgmTracker.IsBgmOrMusicPath(tracked.ScdPath);
+                if (!isBgm
+                    && !IsUnsafeForVolumeEnforcement(tracked.ScdPath)
                     && SoundDataSafety.IsValidForVolumeWrite(soundData)
                     && (tracked.LastWriteByPlugin
                         || tracked.LastEffectiveVolume > 0.001f

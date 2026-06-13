@@ -39,12 +39,20 @@ internal static unsafe class StreamingBgmTracker
         }
 
         scdPath = scdPath.ToLowerInvariant();
+        nint previousClaimedPtr;
         lock (Gate)
         {
+            previousClaimedPtr = s_claimedPtr;
             s_pendingPath = scdPath;
             s_pendingMultiplier = multiplier;
             s_pendingAt = DateTime.UtcNow;
             s_claimedPtr = result != null ? (nint)result : 0;
+        }
+
+        if (previousClaimedPtr != 0
+            && previousClaimedPtr != (result != null ? (nint)result : 0))
+        {
+            SoundVolumeTracker.ReleaseBgmNode((SoundData*)previousClaimedPtr);
         }
 
         if (result != null)

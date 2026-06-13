@@ -415,6 +415,7 @@ public class Plugin : IDalamudPlugin
     {
         MountTransitionGuard.Update();
         Filter.ApplyMountSafeHookState();
+        BgmTransitionGuard.Update(Filter);
 
         if (ZoneTransitionGuard.ShouldSkipSoundDataMaintenance())
         {

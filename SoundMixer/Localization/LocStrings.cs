@@ -332,7 +332,10 @@ internal static class LocStrings
         [SupportKofiTip] = "打开 Ko-fi 页面",
         [ChangelogTitle] = "更新日志",
         [ChangelogBody] =
-            "v0.2.3.7\n"
+            "v0.2.3.8\n"
+            + "· 修复换区/进出战斗/上下坐骑后 BGM 残留：上下文切换时清理 BGM 跟踪、新 PlayBGM 释放旧节点、SetVolume(0) 优先于快路径、enforcement 尊重原生淡出、inactive BGM 不再被恢复音量\n"
+            + "\n"
+            + "v0.2.3.7\n"
             + "· 性能：SetVolume/GetVolume 在已跟踪或全部分组 100% 时跳过路径解析；活跃链表每 2 帧扫描（跟踪 enforcement 仍每帧）；去掉链表内重复跟踪刷新；降低 prune/监听维护频率\n"
             + "\n"
             + "v0.2.3.6\n"
@@ -911,7 +914,10 @@ internal static class LocStrings
         [SupportKofiTip] = "Open Ko-fi page",
         [ChangelogTitle] = "Changelog",
         [ChangelogBody] =
-            "v0.2.3.7\n"
+            "v0.2.3.8\n"
+            + "· Fix BGM lingering after zone/combat/mount transitions: clear BGM tracking on context change, release previous stream on new PlayBGM, SetVolume(0) silencing before fast path, enforce respects native fade, no restore on inactive BGM nodes\n"
+            + "\n"
+            + "v0.2.3.7\n"
             + "· Performance: SetVolume/GetVolume skip path resolve when tracked or all volumes 100%; active list every 2 frames (tracked enforce every frame); no duplicate tracked pass in list; lower prune/monitor maintenance rate\n"
             + "\n"
             + "v0.2.3.6\n"

@@ -745,6 +745,15 @@ internal unsafe class Filter : IDisposable
         SoundBlacklist.ClearPointerCache();
         _pathFailureThrottle.Clear();
         KnownActiveMonitoredSounds.Clear();
+        ScdBasenameAliases.Clear();
+        InvalidateActiveEnforceCache();
+        BgmTransitionGuard.Reset();
+    }
+
+    internal void ClearBgmTransitionTracking()
+    {
+        SoundVolumeTracker.ClearBgmTracking();
+        StreamingBgmTracker.Clear();
         InvalidateActiveEnforceCache();
     }
 
@@ -1992,6 +2001,17 @@ internal unsafe class Filter : IDisposable
 
             try
             {
+                if (volume <= 0.001f)
+                {
+                    if (SoundVolumeTracker.ShouldTreatSetVolumeZeroAsSilencing(self))
+                    {
+                        SoundVolumeTracker.NotifyGameSilencing(self);
+                    }
+
+                    PassthroughSetVolume(self, volume, fadeDuration);
+                    return;
+                }
+
                 if (!Plugin.VolumeCalculator.RequiresAnyVolumeScaling())
                 {
                     PassthroughSetVolume(self, volume, fadeDuration);
@@ -2033,11 +2053,6 @@ internal unsafe class Filter : IDisposable
                 // Scaling/registering zero poisons LastGameVolume and forces ApplyFieldVolume(0).
                 if (gameVolume <= 0.001f)
                 {
-                    if (SoundVolumeTracker.ShouldTreatSetVolumeZeroAsSilencing(self))
-                    {
-                        SoundVolumeTracker.NotifyGameSilencing(self);
-                    }
-
                     PassthroughSetVolume(self, volume, fadeDuration);
                     return;
                 }
